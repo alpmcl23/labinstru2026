@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ titulo }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+        .labinstru-card {
+            background: #f3fafe;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1.5px solid #d6e7f7;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 12px #05445e11;
+        }
+        h2, h3 {
+            color: #145DA0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

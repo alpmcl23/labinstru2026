@@ -1,0 +1,84 @@
+{% extends "siteapp/base.html" %}
+{% block conteudo %}
+
+<style>
+.labinstru-card {
+    background: #f3fafe;
+    border-radius: 16px;
+    padding: 12px 18px 8px 18px;
+    border: 1.5px solid #d6e7f7;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px #05445e11;
+    height: auto;
+}
+.labinstru-card h2 {
+    color: #145DA0;
+    font-size: 1.2em;
+    margin-bottom: 6px;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    text-align: center;
+}
+.labinstru-status {
+    display: block;
+    background: #e63946;
+    color: #fff;
+    font-weight: bold;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.95em;
+    box-shadow: 0 2px 4px #0002;
+    text-align: center;
+    margin-bottom: 6px;
+}
+iframe {
+    border-radius: 10px;
+}
+</style>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- M1: Radar -->
+    <div class="col-md-6">
+      <div class="labinstru-card">
+        <h2>M1 – Radar Meteorológico (RainViewer)</h2>
+        <div class="labinstru-status">Atualizado: {{ agora }}</div>
+        <iframe src="https://www.rainviewer.com/map.html?loc=lat:-3.12,lon:-60.02,zoom:9"
+                width="100%" height="640" frameborder="0"></iframe>
+      </div>
+    </div>
+
+    <!-- M2: Satélite -->
+    <div class="col-md-6">
+      <div class="labinstru-card">
+        <h2>M2 – Satélite GOES-19 (Canal 13)</h2>
+        <div class="labinstru-status">Fonte: CPTEC/INPE</div>
+        <iframe src="https://www.cptec.inpe.br/dsat/?product=ch13_noaa&product_opacity=6&zoom=5&x=3600.0000&y=2950.0000&animate=true&t=200.00&options=false&static=true"
+                width="100%" height="640" scrolling="no" frameborder="0"></iframe>
+      </div>
+    </div>
+
+    <!-- M3: Câmera -->
+    <div class="col-md-6">
+      <div class="labinstru-card">
+        <h2>M3 – Câmera ao Vivo (EST-UEA)</h2>
+        <div class="labinstru-status">AO VIVO</div>
+        <iframe src="https://rtsp.me/embed/KPbwo57M/" width="100%" height="640" allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <!-- M4: meteoblue -->
+    <div class="col-md-6">
+      <div class="labinstru-card">
+        <h2>M4 – Mapa Interativo (meteoblue)</h2>
+        <div class="labinstru-status">Camadas meteorológicas</div>
+        <iframe src="https://www.meteoblue.com/pt/tempo/mapas/widget/manaus_brasil_3663517?windAnimation=1&gust=1&satellite=1&cloudsAndPrecipitation=1&temperature=1&sunshine=1&extremeForecastIndex=1&geoloc=fixed&tempunit=C&windunit=km%252Fh&lengthunit=metric&zoom=5&autowidth=auto"
+                width="100%" height="640" frameborder="0" scrolling="no" allowtransparency="true"
+                sandbox="allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox">
+        </iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

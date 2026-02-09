@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ titulo }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f9f9f9;
+        }
+        nav {
+            background-color: #145DA0;
+            padding: 10px 16px;
+            position: relative;
+        }
+        nav label {
+            font-size: 24px;
+            color: white;
+            display: none;
+            cursor: pointer;
+        }
+        nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+        }
+        nav ul li {
+            margin-right: 16px;
+        }
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 15px;
+        }
+        #menu-toggle {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            nav label {
+                display: block;
+            }
+            nav ul {
+                display: none;
+                flex-direction: column;
+                background-color: #145DA0;
+                margin-top: 10px;
+            }
+            #menu-toggle:checked + ul {
+                display: flex;
+            }
+            nav ul li {
+                margin: 8px 0;
+            }
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 10px;
+        }
+        .labinstru-card {
+            background: #f3fafe;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1.5px solid #d6e7f7;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 12px #05445e11;
+        }
+        h2, h3 {
+            color: #145DA0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <input type="checkbox" id="menu-toggle" />
+        <label for="menu-toggle">&#9776; Menu</label>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/quem-somos/">Quem Somos</a></li>
+            <li><a href="/dashboard/">Dashboard</a></li>
+            <li><a href="/rede-estacoes/">Rede de Estações HOBO</a></li>
+            <li><a href="/condicoes-atuais/">Condições Atuais</a></li>
+            <li><a href="/satelite-e-radar/">Satélite e Radar</a></li>
+            <li><a href="/projetos/">Projetos</a></li>
+            <li><a href="/contato/">Contato</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

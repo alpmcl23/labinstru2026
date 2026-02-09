@@ -1,0 +1,125 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-09-06 16:35-0500\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+#: siteapp/templates/siteapp/base.html:65
+msgid "Selecionar idioma"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:70
+#: siteapp/templates/siteapp/base.html:103
+msgid "Português"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:75
+#: siteapp/templates/siteapp/base.html:108
+msgid "Inglês"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:80
+#: siteapp/templates/siteapp/base.html:113
+msgid "Espanhol"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:88
+msgid "Abrir menu"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:93
+msgid "Menu"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:97
+msgid "Idioma"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:122
+msgid "Página inicial"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:125
+msgid "Quem somos"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:128
+msgid "Estação da EST"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:131
+msgid "Rede de estações HOBO"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:134
+msgid "O tempo agora"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:137
+msgid "Satélite e radar"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:140
+msgid "Estágio Curricular"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:143
+msgid "Projetos"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:146
+msgid "Eventos"
+msgstr ""
+
+#: siteapp/templates/siteapp/base.html:149
+msgid "Contato"
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:4
+msgid "Estágio Curricular – LabInstru"
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:8
+msgid "Estágio curricular"
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:10
+msgid ""
+"O LabInstru oferece oportunidade de estágio (não remunerado) para alunos do "
+"curso de Meteorologia da UEA, regularmente matriculados na disciplina "
+"Estágio Supervisionado. Alunos de outras instituições também podem "
+"participar."
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:14
+msgid "Interessados entrar em contato: <b>mloliveira@uea.edu.br</b>"
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:32
+msgid "Atual"
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:35
+msgid "Curso:"
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:36
+msgid "Área:"
+msgstr ""
+
+#: siteapp/templates/siteapp/estagio.html:37
+msgid "Período:"
+msgstr ""

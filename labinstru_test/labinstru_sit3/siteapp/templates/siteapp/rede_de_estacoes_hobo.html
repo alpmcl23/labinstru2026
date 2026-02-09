@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+
+    <h2 class="text-center">{{ titulo }}</h2>
+
+    <!-- Mapa Folium -->
+    <div class="labinstru-card">
+        <h3>📍 Mapa das Estações</h3>
+        {{ mapa|safe }}
+    </div>
+
+    <!-- Seletor de filtros -->
+    <div class="labinstru-card">
+        <form method="get">
+            <label for="variavel">Variável:</label>
+            <select name="variavel">
+                {% for var in variaveis %}
+                    <option value="{{ var }}" {% if var == variavel %}selected{% endif %}>{{ var }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="estacao">Estação:</label>
+            <select name="estacao">
+                {% for est in estacoes %}
+                    <option value="{{ est }}" {% if est == estacao %}selected{% endif %}>{{ est }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="ano">Ano:</label>
+            <select name="ano">
+                {% for a in anos %}
+                    <option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit">Atualizar</button>
+        </form>
+    </div>
+
+    <!-- Gráfico -->
+    {% if grafico %}
+    <div class="labinstru-card">
+        <h3>📊 Gráfico da variável {{ variavel }} – Estação {{ estacao }} ({{ ano }})</h3>
+        {{ grafico|safe }}
+    </div>
+    {% endif %}
+
+    <!-- Erro -->
+    {% if erro %}
+    <div class="alert alert-danger" role="alert">
+        {{ erro }}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

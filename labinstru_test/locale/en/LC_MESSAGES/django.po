@@ -1,0 +1,148 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: LabInstru 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-09-06 16:34-0500\n"
+"PO-Revision-Date: 2025-08-23 16:55-0400\n"
+"Last-Translator: Your Name <you@example.com>\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: siteapp/templates/siteapp/base.html:65
+msgid "Selecionar idioma"
+msgstr "Select language"
+
+#: siteapp/templates/siteapp/base.html:70
+#: siteapp/templates/siteapp/base.html:103
+msgid "Português"
+msgstr "Portuguese"
+
+#: siteapp/templates/siteapp/base.html:75
+#: siteapp/templates/siteapp/base.html:108
+msgid "Inglês"
+msgstr "English"
+
+#: siteapp/templates/siteapp/base.html:80
+#: siteapp/templates/siteapp/base.html:113
+msgid "Espanhol"
+msgstr "Spanish"
+
+#: siteapp/templates/siteapp/base.html:88
+msgid "Abrir menu"
+msgstr "Open menu"
+
+#: siteapp/templates/siteapp/base.html:93
+msgid "Menu"
+msgstr "Menu"
+
+#: siteapp/templates/siteapp/base.html:97
+msgid "Idioma"
+msgstr "Language"
+
+#: siteapp/templates/siteapp/base.html:122
+msgid "Página inicial"
+msgstr "Home"
+
+#: siteapp/templates/siteapp/base.html:125
+msgid "Quem somos"
+msgstr "About us"
+
+#: siteapp/templates/siteapp/base.html:128
+msgid "Estação da EST"
+msgstr "EST Station"
+
+#: siteapp/templates/siteapp/base.html:131
+msgid "Rede de estações HOBO"
+msgstr "HOBO stations network"
+
+#: siteapp/templates/siteapp/base.html:134
+msgid "O tempo agora"
+msgstr "Current weather"
+
+#: siteapp/templates/siteapp/base.html:137
+msgid "Satélite e radar"
+msgstr "Satellite & radar"
+
+#: siteapp/templates/siteapp/base.html:140
+msgid "Estágio Curricular"
+msgstr "Internship"
+
+#: siteapp/templates/siteapp/base.html:143
+msgid "Projetos"
+msgstr "Projects"
+
+#: siteapp/templates/siteapp/base.html:146
+msgid "Eventos"
+msgstr "Events"
+
+#: siteapp/templates/siteapp/base.html:149
+msgid "Contato"
+msgstr "Contact"
+
+# Estágio
+#: siteapp/templates/siteapp/estagio.html:4
+msgid "Estágio Curricular – LabInstru"
+msgstr "Internship – LabInstru"
+
+#: siteapp/templates/siteapp/estagio.html:8
+msgid "Estágio curricular"
+msgstr "Internship"
+
+#: siteapp/templates/siteapp/estagio.html:10
+msgid ""
+"O LabInstru oferece oportunidade de estágio (não remunerado) para alunos do "
+"curso de Meteorologia da UEA, regularmente matriculados na disciplina "
+"Estágio Supervisionado. Alunos de outras instituições também podem "
+"participar."
+msgstr ""
+"LabInstru offers an internship opportunity (unpaid) for students of UEA’s "
+"Meteorology program who are regularly enrolled in the Supervised Internship "
+"course. Students from other institutions may also participate."
+
+#: siteapp/templates/siteapp/estagio.html:14
+msgid "Interessados entrar em contato: <b>mloliveira@uea.edu.br</b>"
+msgstr "Those interested should contact: <b>mloliveira@uea.edu.br</b>"
+
+#: siteapp/templates/siteapp/estagio.html:32
+msgid "Atual"
+msgstr "Current"
+
+#: siteapp/templates/siteapp/estagio.html:35
+msgid "Curso:"
+msgstr "Course:"
+
+#: siteapp/templates/siteapp/estagio.html:36
+msgid "Área:"
+msgstr "Field:"
+
+#: siteapp/templates/siteapp/estagio.html:37
+msgid "Período:"
+msgstr "Term:"
+
+#~ msgid "Agente em desenvolvimento"
+#~ msgstr "Agent in development"
+
+#~ msgid "Fechar"
+#~ msgstr "Close"
+
+#~ msgid "Pergunte sobre meteorologia ou o LabInstru..."
+#~ msgstr "Ask about meteorology or LabInstru..."
+
+#~ msgid "Enviar"
+#~ msgstr "Send"
+
+#~ msgid "Digitando…"
+#~ msgstr "Typing…"
+
+#~ msgid "Fontes:"
+#~ msgstr "Sources:"
+
+#~ msgid "Sem resposta."
+#~ msgstr "No answer."
+
+#~ msgid "⚠️ Tive um problema para responder agora. Tenta de novo em instantes."
+#~ msgstr "⚠️ I had a problem responding now. Please try again shortly."
