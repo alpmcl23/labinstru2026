@@ -1,0 +1,44 @@
+{% extends 'siteapp/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Estágio Curricular – LabInstru" %}{% endblock %}
+
+{% block content %}
+<div class="labinstru-card">
+  <h2>{% trans "Estágio curricular" %}</h2>
+  <p>
+    {% blocktrans trimmed %}
+    O LabInstru oferece oportunidade de estágio (não remunerado) para alunos do curso de Meteorologia da UEA, regularmente matriculados na disciplina Estágio Supervisionado. Alunos de outras instituições também podem participar.
+    {% endblocktrans %}
+  </p>
+  <p>{% blocktrans trimmed %}Interessados entrar em contato: <b>mloliveira@uea.edu.br</b>{% endblocktrans %}</p>
+</div>
+
+<style>
+  .estagio-card { background:#fff; border-radius:12px; box-shadow:0 1px 12px rgba(0,0,0,.08); border:0; }
+  .estagio-card .titulo { font-weight:700; font-size:1.05rem; }
+  .estagio-card .linha { font-size:.96rem; color:#334155; }
+</style>
+
+<div class="container-fluid px-0">
+  <div class="row g-4">
+    {% for e in estagiarios %}
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card estagio-card h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="titulo">{{ e.nome }}</div>
+              {% if e.atual %}
+                <span class="badge bg-success">{% trans "Atual" %}</span>
+              {% endif %}
+            </div>
+            <div class="linha"><b>{% trans "Curso:" %}</b> {{ e.curso }}</div>
+            <div class="linha"><b>{% trans "Área:" %}</b> {{ e.area }}</div>
+            <div class="linha"><b>{% trans "Período:" %}</b> {{ e.periodo }}</div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

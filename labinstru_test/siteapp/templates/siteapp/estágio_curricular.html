@@ -1,0 +1,29 @@
+{% extends "siteapp/base.html" %}
+{% block conteudo %}
+
+<h2>📄 Estágio Curricular</h2>
+
+<div class="alert alert-info" style="background:#f3f8fd; padding:18px 16px; border-radius:13px; box-shadow:0 1px 14px #1976d216; margin:18px 0;">
+  O Labinstru oferece oportunidade de estágio (não remunerado) para alunos do curso de Meteorologia da UEA, regularmente matriculados na disciplina Estágio Supervisionado.<br><br>
+  Alunos de outras instituições também podem participar.<br><br>
+  Interessados entrar em contato: <strong>mloliveira@uea.edu.br</strong>
+</div>
+
+<div class="container">
+  <div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for nome, curso, area, periodo in estagiarios %}
+    <div class="col">
+      <div class="card h-100 shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">{{ nome }}</h5>
+          <p class="card-text"><strong>Curso:</strong> {{ curso }}<br>
+          <strong>Área:</strong> {{ area }}<br>
+          <strong>Período:</strong> {{ periodo }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

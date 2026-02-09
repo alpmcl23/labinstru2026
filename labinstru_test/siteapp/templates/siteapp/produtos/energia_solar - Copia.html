@@ -1,0 +1,41 @@
+{% extends "siteapp/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Energia (Solar)" %} | LabInstru{% endblock %}
+
+{% block content %}
+<div class="product-hero">
+  <h1>{% trans "Energia (Solar)" %}</h1>
+  <div class="sub">{% trans "Produto" %} • {% trans "Monitoramento e apoio à decisão" %}</div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-12 col-lg-7">
+      <p class="mb-2">
+        {% trans "Solução voltada ao suporte de projetos e operação de sistemas fotovoltaicos, usando variáveis meteorológicas e radiativas para melhorar eficiência e reduzir riscos." %}
+      </p>
+
+      <ul class="mb-0">
+        <li>{% trans "Acompanhamento de radiação solar e nebulosidade" %}</li>
+        <li>{% trans "Temperatura do ar e impacto no desempenho do sistema" %}</li>
+        <li>{% trans "Relatórios e indicadores para tomada de decisão" %}</li>
+        <li>{% trans "Alertas de condições adversas (chuva intensa/vento)" %}</li>
+      </ul>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="product-card">
+        <h5>{% trans "Entregáveis" %}</h5>
+        <ul class="mb-3">
+          <li>{% trans "Painel de acompanhamento" %}</li>
+          <li>{% trans "Resumo semanal/mensal" %}</li>
+          <li>{% trans "Série histórica e comparativos" %}</li>
+        </ul>
+
+        <a class="btn btn-light w-100 fw-bold" href="{% url 'contato' %}">
+          <i class="fa-solid fa-paper-plane me-1"></i> {% trans "Solicitar orçamento" %}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

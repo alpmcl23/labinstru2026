@@ -1,0 +1,67 @@
+{% extends 'siteapp/base.html' %}
+{% load static %}
+{% block title %}Quem Somos – LabInstru{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="labinstru-card">
+
+    <style>
+      /* cor base (cai para o verde do Lab se existir) */
+      :root{ --lab-green: var(--selva-green-600, #0e4a38); }
+
+      /* “Só círculo”: nada de fundo retangular */
+      .profile-card{
+        background: transparent; border: 0; box-shadow: none;
+        text-align: center; padding: .75rem 0;
+      }
+      .avatar-clip{
+        width: 160px; height: 160px;
+        border-radius: 50%;
+        overflow: hidden;
+        margin: 0 auto;
+        border: 4px solid var(--lab-green);
+        box-shadow: 0 6px 16px rgba(0,0,0,.12);
+        transition: transform .15s ease, box-shadow .15s ease;
+      }
+      .avatar-clip img{
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      .profile-card:hover .avatar-clip{
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(0,0,0,.18);
+      }
+      /* Botão no tom do verde do site */
+      .btn-outline-primary{
+        --bs-btn-color: var(--lab-green);
+        --bs-btn-border-color: var(--lab-green);
+        --bs-btn-hover-bg: var(--lab-green);
+        --bs-btn-hover-border-color: var(--lab-green);
+        --bs-btn-hover-color: #fff;
+      }
+    </style>
+
+    <!-- 1 col no mobile, 2 no md, 3 no lg -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+      {% for p in equipe %}
+      <div class="col">
+        <div class="profile-card">
+          <div class="avatar-clip">
+            <img src="{% static p.img %}" alt="{{ p.nome }}">
+          </div>
+          <h5 class="mt-3 mb-1">{{ p.nome }}</h5>
+          <div class="text-muted mb-2">{{ p.cargo }}</div>
+          {% if p.lattes %}
+            <a href="{{ p.lattes }}" target="_blank" rel="noopener"
+               class="btn btn-sm btn-outline-primary">
+              <i class="fa-solid fa-file-lines me-1"></i> Currículo Lattes
+            </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,338 @@
+{% extends "siteapp/base.html" %}
+{% load static %}
+
+{% block title %}INMET {{ station }} — Manaus{% endblock %}
+
+{% block content %}
+<style>
+  :root{
+    --tabbar-bg:#0d3a2f;
+    --panel-bg:#11382e;
+    --card-bg1:#102f27; --card-bg2:#0c251f;
+    --card-border:#0f3a2e;
+    --ink:#e9fff3; --ink-dim:#bfe9da;
+  }
+  .inmet-tabbar{
+    background:var(--tabbar-bg); border-radius:10px; padding:10px 14px;
+    box-shadow:0 10px 22px rgba(0,0,0,.18);
+    margin:6px 0 18px; display:flex; gap:22px; align-items:center;
+  }
+  .tabs-pills{ display:flex; flex-wrap:wrap; gap:22px; }
+  .tab-pill{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:12px 26px; border:2px solid #fff; border-radius:22px;
+    background:transparent; color:#fff; font-weight:800; text-decoration:none; line-height:1;
+    transition:transform .12s, box-shadow .12s, background .12s, color .12s;
+  }
+  .tab-pill:hover{ transform:translateY(-1px); box-shadow:0 6px 14px rgba(0,0,0,.18); }
+  .tab-pill.is-active{ background:#fff; color:var(--tabbar-bg); box-shadow:0 6px 16px rgba(0,0,0,.2); }
+
+  .update-pill{
+    background:#fff; color:var(--tabbar-bg); border:2px solid #fff; border-radius:28px;
+    padding:10px 14px; box-shadow:0 6px 16px rgba(0,0,0,.15);
+    display:inline-flex; align-items:center; gap:10px;
+  }
+  .update-pill .u-title{
+    font-weight:900; font-size:12px; letter-spacing:.6px;
+    text-transform:uppercase; opacity:.85;
+    background:rgba(13,58,47,.08); padding:4px 8px; border-radius:999px;
+  }
+  .update-pill .u-dt{ font-weight:900; font-size:18px; white-space:nowrap; }
+
+  .inmet-slab{
+    background:var(--panel-bg); border-radius:20px; padding:20px;
+    box-shadow:0 10px 26px rgba(0,0,0,.15); border:1px solid rgba(0,0,0,.08);
+  }
+  .metric-card{
+    background:linear-gradient(180deg,var(--card-bg1),var(--card-bg2));
+    border:1px solid var(--card-border); border-radius:18px; padding:18px 20px;
+    color:var(--ink); box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 6px 18px rgba(0,0,0,.22);
+    min-height:120px; display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .metric-label{ color:var(--ink-dim); font-weight:800; font-size:18px; letter-spacing:.3px; margin-bottom:6px; }
+  .metric-value{ color:#f5fff9; font-weight:900; font-size:46px; line-height:1.05; text-shadow:0 2px 0 rgba(0,0,0,.25); }
+  .map-card{ padding-bottom:12px; }
+  .map-box{ height:440px; border-radius:14px; overflow:hidden; }
+
+  .compact-row{
+    display:flex; gap:12px; align-items:center; white-space:nowrap;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; padding:8px 6px 2px; margin-bottom:14px;
+  }
+  .chip{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 12px; border:1.5px solid rgba(255,255,255,.7);
+    border-radius:999px; background:rgba(255,255,255,.06);
+    color:#fff; font-weight:800; line-height:1;
+  }
+  .chip .n{ background:#fff; color:#163c2f; font-weight:900; border-radius:10px; padding:2px 8px; }
+  .chip small{ opacity:.85; font-weight:700; margin-left:6px; }
+
+  /* ALERTA */
+  .alertas-wrap{ display:flex; gap:16px; flex-wrap:wrap; }
+  .alertas-map{ flex:1 1 52%; min-width:320px; }
+  .alertas-side{ flex:1 1 46%; min-width:320px; }
+  .alertas-box{
+    background:#fff; color:#1b1b1b;
+    border:2px solid #0d47a1; border-radius:8px; padding:14px 16px;
+    box-shadow:0 4px 16px rgba(0,0,0,.08);
+  }
+  .alertas-head{ font-weight:800; margin-bottom:6px; }
+  .alertas-hr{ border-top:1px solid #d9e3f5; margin:12px 0; }
+  .leaflet-container{ border-radius:8px; }
+  .sev-chip{ font-weight:800; }
+</style>
+
+<!-- Abas -->
+<div class="inmet-tabbar">
+  <nav class="tabs-pills" role="tablist" aria-label="Abas do painel INMET">
+    <a href="?tab=tempo"   class="tab-pill {% if active_tab == 'tempo' %}is-active{% endif %}">Tempo real</a>
+    <a href="?tab=alerta"  class="tab-pill {% if active_tab == 'alerta' %}is-active{% endif %}">ALERTA METEOROLÓGICO</a>
+    <a href="?tab=diario"  class="tab-pill {% if active_tab == 'diario' %}is-active{% endif %}">Diário</a>
+    <a href="?tab=semanal" class="tab-pill {% if active_tab == 'semanal' %}is-active{% endif %}">Semanal</a>
+    <a href="?tab=mensal"  class="tab-pill {% if active_tab == 'mensal' %}is-active{% endif %}">Mensal</a>
+    <a href="?tab=clima"   class="tab-pill {% if active_tab == 'clima' %}is-active{% endif %}">Climatologia</a>
+  </nav>
+</div>
+
+{% if error_message %}
+  <div class="alert alert-warning">Aviso da API INMET: {{ error_message }}</div>
+{% endif %}
+
+{# ===== TEMPO REAL ===== #}
+{% if active_tab == 'tempo' %}
+  <div class="inmet-slab">
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <div class="mb-3">
+          <div class="update-pill">
+            <span class="u-title">Última atualização</span>
+            <span class="u-dt">{{ update_date|default:"—/—/—" }} · {{ update_time|default:"— (Manaus)" }}</span>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-12 col-md-6"><div class="metric-card"><div class="metric-label">Temperatura do Ar</div><div class="metric-value">{{ rt_temp_value|default:"—" }} °C</div></div></div>
+          <div class="col-12 col-md-6"><div class="metric-card"><div class="metric-label">Conforto Térmico</div><div class="metric-value">{{ rt_feels_value|default:"—" }} °C</div></div></div>
+          <div class="col-12 col-md-6"><div class="metric-card"><div class="metric-label">Umidade</div><div class="metric-value">{{ rt_humi_value|default:"—" }} %</div></div></div>
+          <div class="col-12 col-md-6"><div class="metric-card"><div class="metric-label">Pressão</div><div class="metric-value">{{ rt_pres_value|default:"—" }} hPa</div></div></div>
+          <div class="col-12 col-md-6"><div class="metric-card"><div class="metric-label">Vento</div><div class="metric-value">{{ rt_wind_value|default:"—" }} m/s</div></div></div>
+        </div>
+      </div>
+
+      <div class="col-12 col-lg-6">
+        <div class="metric-card map-card">
+          <div class="metric-label mb-2">Localização da estação</div>
+          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+          <div id="map-station" class="map-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      const lat={{ station_lat|default:"-3.118" }},
+            lon={{ station_lon|default:"-60.021" }},
+            nome="{{ station_name|escapejs }}";
+      function start(){
+        if(!window.L || !document.getElementById('map-station')) return;
+        const map=L.map('map-station',{zoomControl:true}).setView([lat,lon],12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+          maxZoom:18, attribution:'&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        const mk=L.marker([lat,lon]).addTo(map);
+        mk.bindPopup(`<b>${nome}</b><br>Lat: ${lat.toFixed(4)}<br>Lon: ${lon.toFixed(4)}`).openPopup();
+        L.circle([lat,lon],{radius:1500,weight:1,fillOpacity:.05}).addTo(map);
+        L.control.scale({metric:true,imperial:false}).addTo(map);
+      }
+      if(!window.L){
+        const s=document.createElement('script');
+        s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        s.onload=start; document.body.appendChild(s);
+      } else { start(); }
+    })();
+  </script>
+
+{# ===== ALERTA METEOROLÓGICO ===== #}
+{% elif active_tab == 'alerta' %}
+  <div class="inmet-slab">
+    <div class="alertas-wrap">
+      <!-- MAPA -->
+      <div class="alertas-map">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+        <div id="map-alertas" style="height:560px;"></div>
+      </div>
+
+      <!-- PAINEL estilo ALERT-AS -->
+      <div class="alertas-side">
+        <div class="alertas-box" id="painel-alerta">
+          <div class="mb-2">
+            <div><b>Aviso de:</b> <span id="p-descricao">—</span></div>
+            <div><b>Grau de severidade:</b> <span id="p-severidade" class="sev-chip">—</span></div>
+            <div><b>Início:</b> <span id="p-inicio">—</span></div>
+            <div><b>Fim:</b> <span id="p-fim">—</span></div>
+          </div>
+          <div class="alertas-hr"></div>
+          <div class="mb-2">
+            <div class="alertas-head">Riscos Potenciais:</div>
+            <div id="p-riscos" style="line-height:1.45">—</div>
+          </div>
+          <div class="alertas-hr"></div>
+          <div class="mb-2">
+            <div class="alertas-head">Instruções:</div>
+            <ul id="p-instrucoes" style="margin:0 0 0 18px;"></ul>
+          </div>
+          <div class="alertas-hr"></div>
+          <div class="mb-2">
+            <div class="alertas-head">Municípios:</div>
+            <div id="p-municipios">—</div>
+          </div>
+          <div class="alertas-hr"></div>
+          <div class="mb-2">
+            <div class="alertas-head">Áreas Afetadas:</div>
+            <div id="p-areas">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Dados injetados pela view
+    const GEOJSON = (function(){
+      try{ return JSON.parse('{{ geojson_str|escapejs }}'); }
+      catch(e){ return {"type":"FeatureCollection","features":[]}; }
+    })();
+    const SEL = {{ alert_selected|default:"null"|safe }};
+    const ERR = "{{ alert_error|default:''|escapejs }}";
+
+    // Região Norte (AC, AM, AP, PA, RO, RR, TO) + MT — bounds aproximados
+    const NORTH_BOUNDS = L.latLngBounds(
+      L.latLng(-20.0, -76.0),
+      L.latLng(  6.5, -43.0)
+    );
+
+    const map = L.map('map-alertas', {
+      zoomControl: true,
+      maxBounds: NORTH_BOUNDS.pad(0.03),
+      maxBoundsViscosity: 0.7
+    });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      maxZoom: 18, attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    function styleFn(f){
+      const c=(f.properties && f.properties.aviso_cor) ? f.properties.aviso_cor : '#ffd300';
+      return { color:'#000', weight:1, fillColor:c, fillOpacity:0.35 };
+    }
+
+    function fillPanel(p){
+      if(!p){ return; }
+      document.getElementById('p-descricao').textContent = p.descricao || '—';
+      const sev = p.severidade || '—';
+      const col = p.aviso_cor || '#ffd300';
+      const sevEl = document.getElementById('p-severidade');
+      sevEl.textContent = sev; sevEl.style.color = col;
+
+      const ini = `${p.data_inicio_formatado || '—'} ${p.hora_inicio || ''}`.trim();
+      const fim = `${p.data_fim_formatado || '—'} ${p.hora_fim || ''}`.trim();
+      document.getElementById('p-inicio').textContent = ini;
+      document.getElementById('p-fim').textContent = fim;
+
+      document.getElementById('p-riscos').textContent = p.riscos_txt || '—';
+
+      const ul = document.getElementById('p-instrucoes'); ul.innerHTML='';
+      (String(p.instr_txt||'').split('.').map(s=>s.trim()).filter(Boolean)).forEach(t=>{
+        const li=document.createElement('li'); li.textContent=t+'.'; ul.appendChild(li);
+      });
+      if(!ul.children.length){ ul.innerHTML='<li>—</li>'; }
+
+      const muniBox = document.getElementById('p-municipios');
+      const all = (p.municipios_view || '—');
+      if(all.length <= 260){ muniBox.textContent = all; }
+      else{
+        const curto = all.slice(0, 260)+'... '; muniBox.innerHTML = curto+'<a href="#" id="vejaMais">VEJA MAIS</a>';
+        setTimeout(()=>{ const a=document.getElementById('vejaMais'); if(a){ a.onclick=(e)=>{ e.preventDefault(); muniBox.textContent = all; }; } },0);
+      }
+      document.getElementById('p-areas').textContent = p.areas_afetadas || '—';
+    }
+
+    // Camada GeoJSON
+    let gj=null;
+    if(GEOJSON && GEOJSON.features && GEOJSON.features.length){
+      gj = L.geoJSON(GEOJSON, {
+        style: styleFn,
+        onEachFeature: function(feat, layer){
+          layer.on('click', ()=>{
+            try{ map.fitBounds(layer.getBounds().pad(0.12)); }catch(e){}
+            fillPanel(feat.properties || {});
+          });
+        }
+      }).addTo(map);
+      try{
+        const b=gj.getBounds();
+        if(b && b.isValid()){ map.fitBounds(b.pad(0.10)); }
+        else{ map.fitBounds(NORTH_BOUNDS); }
+      }catch(e){ map.fitBounds(NORTH_BOUNDS); }
+      fillPanel(SEL || (GEOJSON.features[0].properties || null));
+    }else{
+      map.fitBounds(NORTH_BOUNDS);
+      if(ERR){ document.getElementById('p-descricao').textContent = ERR; }
+    }
+
+    // corrige render quando abrir a aba
+    setTimeout(()=>{ map.invalidateSize(true); }, 200);
+  </script>
+
+{# ===== DIÁRIO ===== #}
+{% elif active_tab == 'diario' %}
+  <div class="inmet-slab">
+    <div class="compact-row"><span class="chip">{{ pill_diario }}</span></div>
+    <div class="metric-card">{{ graph_daily|safe }}</div>
+  </div>
+
+{# ===== SEMANAL ===== #}
+{% elif active_tab == 'semanal' %}
+  <div class="inmet-slab">
+    <div class="compact-row">
+      <span class="chip">Máx <span class="n">{{ week_tmax }}</span> °C {% if week_tmax_day and week_tmax_day != "—" %}<small>({{ week_tmax_day }})</small>{% endif %}</span>
+      <span class="chip">Mín <span class="n">{{ week_tmin }}</span> °C {% if week_tmin_day and week_tmin_day != "—" %}<small>({{ week_tmin_day }})</small>{% endif %}</span>
+      <span class="chip">Média da semana <span class="n">{{ week_temp_avg }}</span> °C</span>
+      <span class="chip">Chuva total <span class="n">{{ week_rain_total }}</span> mm</span>
+      <span class="chip"><span class="n">{{ week_rain_days }}</span> dias com chuva</span>
+      <span class="chip"><span class="n">{{ week_dry_days }}</span> dias sem chuva</span>
+    </div>
+    <div class="metric-card">{{ graph_week_combo|safe }}</div>
+  </div>
+
+{# ===== MENSAL ===== #}
+{% elif active_tab == 'mensal' %}
+  <div class="inmet-slab">
+    <div class="compact-row">
+      <span class="chip">Mês <span class="n">{{ month_label }}</span></span>
+      <span class="chip">Máx <span class="n">{{ month_tmax }}</span> °C {% if month_tmax_day and month_tmax_day != "—" %}<small>({{ month_tmax_day }})</small>{% endif %}</span>
+      <span class="chip">Mín <span class="n">{{ month_tmin }}</span> °C {% if month_tmin_day and month_tmin_day != "—" %}<small>({{ month_tmin_day }})</small>{% endif %}</span>
+      <span class="chip">Chuva total <span class="n">{{ month_rain_total }}</span> mm</span>
+      <span class="chip"><span class="n">{{ month_rain_days }}</span> dias com chuva</span>
+      <span class="chip"><span class="n">{{ month_dry_days }}</span> dias sem chuva</span>
+    </div>
+    <div class="metric-card">{{ graph_month|safe }}</div>
+  </div>
+
+{# ===== CLIMATOLOGIA ===== #}
+{% else %}
+  <div class="inmet-slab">
+    <div class="compact-row">
+      <span class="chip">Períodos <span class="n">{{ clima_periodo }}</span></span>
+    </div>
+    <div class="row g-4">
+      <div class="col-12 col-lg-6"><div class="metric-card"><div class="metric-label">Temperatura Máxima Climatológica</div>{{ graph_clima_tmax|safe }}</div></div>
+      <div class="col-12 col-lg-6"><div class="metric-card"><div class="metric-label">Temperatura Média Climatológica</div>{{ graph_clima_tmed|safe }}</div></div>
+      <div class="col-12 col-lg-6"><div class="metric-card"><div class="metric-label">Temperatura Mínima Climatológica</div>{{ graph_clima_tmin|safe }}</div></div>
+      <div class="col-12 col-lg-6"><div class="metric-card"><div class="metric-label">Precipitação Climatológica</div>{{ graph_clima_prec|safe }}</div></div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

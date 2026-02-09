@@ -1,0 +1,163 @@
+{% extends 'siteapp/base.html' %}
+{% load static %}
+
+{% block title %}Home – LabInstru{% endblock %}
+
+{% block content %}
+<style>
+  /* ===== Paleta verde (ajuste aqui se quiser outra tonalidade) ===== */
+  :root{
+    --accent: #0e4a38;           /* verde principal (aba) */
+    --accent-2: #32b68a;         /* verde secundário */
+    --bg-soft: #ecf7f3;          /* fundo muito claro esverdeado */
+  }
+
+  /* largura geral do conteúdo */
+  .wrap-narrow{ max-width:1600px; margin:0 auto; padding:0 12px; }
+
+  /* Logo + título */
+  .logo-top{
+    width:min(95vw, 900px);
+    height:auto; display:block; margin:6px auto 0;
+  }
+  .titulo-labinst{
+    text-align:center; margin:10px 0 14px;
+    font-size:clamp(32px,4.6vw,33px);
+    font-weight:600; letter-spacing:.3px;
+    color:var(--accent);
+  }
+
+  /* Vídeo e Card mais largos */
+  .video-card,.labinstru-card{ width:100%; max-width:1400px; margin:10px auto 0; }
+
+  /* Card do vídeo */
+  .video-card{
+    position:relative; border-radius:16px; overflow:hidden;
+    box-shadow:0 8px 28px rgba(0,0,0,.10);
+    background:var(--bg-soft);
+    outline:2px solid rgba(14,74,56,.08);
+  }
+  .ratio-16x9{ aspect-ratio:21/9; }
+  @media (max-width:992px){ .ratio-16x9{ aspect-ratio:16/9; } }
+  .video-card video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+  video::-webkit-media-controls, video::-webkit-media-controls-enclosure{ display:none !important; }
+
+  /* Card “Bem-vindo” */
+  .labinstru-card{
+    padding:22px 26px; border-radius:16px; background:#fff;
+    box-shadow:0 8px 28px rgba(0,0,0,.08);
+    border:1.8px solid rgba(14,74,56,.12);
+  }
+  .labinstru-card h2{ color:var(--accent); }
+  .labinstru-card hr{
+    height:4px; border:0; border-radius:3px;
+    background:linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+    opacity:1; margin:30px 0 18px 0;
+  }
+  .texto-justificado p{ text-align:justify; text-justify:inter-word; margin-bottom:.75rem; }
+
+  /* Lista com bullets verdes */
+  .labinstru-list{ list-style:none; padding-left:0; margin-bottom:1rem; }
+  .labinstru-list li{
+    position:relative; padding-left:1.4rem; margin:.35rem 0; line-height:1.6; color:#222;
+  }
+  .labinstru-list li::before{
+    content:"•"; position:absolute; left:0; top:.1rem;
+    font-size:1.3rem; line-height:1; color:var(--accent);
+  }
+  .subtitulo-verde{ color:var(--accent); }
+
+  /* Mapa de Localização (fixo) */
+  .map-card{
+    width:100%; max-width:1400px; margin:14px auto 24px;
+    border-radius:16px; overflow:hidden;
+    box-shadow:0 8px 28px rgba(0,0,0,.10); background:#fff;
+    border:1.8px solid rgba(14,74,56,.12);
+  }
+  #map-local{ width:100%; height:520px; }
+  @media (max-width:992px){ #map-local{ height:420px; } }
+</style>
+
+<div class="wrap-narrow">
+  <!-- LOGO + TÍTULO -->
+  <img src="{% static 'logo.png' %}" alt="LabInstru" class="logo-top">
+  <h1 class="titulo-labinst">Laboratório de Instrumentação Meteorológica</h1>
+
+  <!-- VÍDEO -->
+  <div class="video-card ratio-16x9">
+    <video autoplay muted loop playsinline preload="metadata"
+           controlslist="nodownload noplaybackrate nofullscreen"
+           disablepictureinpicture oncontextmenu="return false;">
+      <source src="{% static 'videos/labinstru_apresentacao.mp4' %}" type="video/mp4">
+      Seu navegador não suporta vídeo HTML5.
+    </video>
+  </div>
+
+  <!-- CARD “BEM-VINDO” -->
+  <div class="labinstru-card texto-justificado">
+    <h2 class="mb-2">Bem-vindo ao LabInstru – EST/UEA</h2>
+    <p>O Laboratório de Instrumentação Meteorológica da EST/UEA, conhecido como <b>LabInstru</b>,
+       foi criado para atender as demandas do Curso de Graduação em Meteorologia.</p>
+
+    <hr>
+
+    <h3 class="subtitulo-verde">Atividades do LabInstru:</h3>
+    <ul class="labinstru-list">
+      <li>Montagem e manutenção de equipamentos meteorológicos;</li>
+      <li>Manter uma rede de Estações Meteorológicas em funcionamento contínuo em Manaus;</li>
+      <li>Organizar os dados coletados nas estações instaladas pelo laboratório;</li>
+      <li>Dar suporte a projetos de pesquisa para instalação e operação de instrumentos de monitoramento de variáveis atmosféricas;</li>
+      <li>Disponibilizar dados para a população em geral, popularizando a Meteorologia;</li>
+      <li>Realizar aulas práticas da disciplina Instrumentação Meteorológica e, quando solicitado, para professores de outras disciplinas e/ou instituições;</li>
+      <li>Desenvolver atividades de pesquisa e extensão;</li>
+      <li>Receber alunos pré-concluintes para estágio curricular.</li>
+    </ul>
+
+    <p>Está localizado na sala C29, da Escola Superior de Tecnologia da UEA, na avenida Darcy Vargas, nº 1200.
+       Equipado com sensores meteorológicos, estações e ferramentas para montagem e manutenção.</p>
+  </div>
+
+  <!-- MAPA -->
+  <div class="map-card">
+    <div id="map-local"></div>
+  </div>
+</div>
+
+<!-- Leaflet CSS/JS (CDN) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Coordenadas da EST/UEA (Avenida Darcy Vargas, 1200 – Manaus)
+  const LAT = -3.0919328;
+  const LNG = -60.017686;
+
+  // Mapa fixo (sem interações)
+  const map = L.map('map-local', {
+    center: [LAT, LNG],
+    zoom: 16,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    touchZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    zoomControl: false,
+    tap: false
+  });
+
+  // Camada base
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+
+  // Marcador + popup aberto
+  L.marker([LAT, LNG]).addTo(map)
+    .bindPopup(
+      '<strong style="color:#0e4a38;">LabInstru – EST/UEA</strong><br>Av. Darcy Vargas, 1200<br>Parque 10 de Novembro – Manaus/AM',
+      { closeButton:false, autoClose:false, closeOnClick:false, closeOnEscapeKey:false }
+    )
+    .openPopup();
+</script>
+{% endblock %}

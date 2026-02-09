@@ -1,0 +1,248 @@
+{% extends 'siteapp/base.html' %}
+{% load static %}
+{% block title %}Satélite e Radar – LabInstru{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root { --panel-h: 58vh; } /* altura única para TODOS os painéis */
+
+  .map-wrapper { position: relative; }
+  #radarOSM { height: var(--panel-h); min-height: 420px; border-radius: 14px; }
+
+  /* wrapper fixo para o IFRAME do satélite */
+  .embed-wrapper{
+    height: var(--panel-h);
+    min-height: 420px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #eef6ff;
+  }
+  .embed-wrapper iframe{
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+
+  /* barra de controles e caixa de horário (radar) */
+  .rv-toolbar{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    background:#fff; border:1px solid #e5eef8; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.12);
+    padding:6px 10px; display:flex; gap:10px; z-index: 500;
+  }
+  .rv-toolbar .btn{ padding:6px 10px; border-radius:8px; font-size:14px; }
+  .rv-timebox{
+    position:absolute; top:14px; right:14px;
+    background:#fff; border:1px solid #d6e7f7; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.12);
+    padding:10px 12px; z-index: 500; color:#145DA0; font-weight:700; line-height:1.25;
+    min-width: 190px; text-align:left;
+  }
+  .rv-timebox small{ display:block; color:#0b335e; font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row g-3">
+
+    <!-- Radar (esquerda) -->
+    <div class="col-lg-6 d-flex">
+      <div class="labinstru-card w-100 h-100">
+        <h2>Radar Meteorológico</h2>
+        <div class="alert alert-danger py-2 fw-bold">Fonte: RainViewer {{ agora|date:"d/m/Y, H:i:s" }}</div>
+
+        <div class="map-wrapper">
+          <!-- Controles -->
+          <div class="rv-toolbar">
+            <button type="button" id="rv-back" class="btn btn-outline-primary" title="Anterior">
+              <i class="fa-solid fa-backward"></i>
+            </button>
+            <button type="button" id="rv-play" class="btn btn-primary" title="Reproduzir/Pausar">
+              <i class="fa-solid fa-play"></i>
+            </button>
+            <button type="button" id="rv-next" class="btn btn-outline-primary" title="Próximo">
+              <i class="fa-solid fa-forward"></i>
+            </button>
+          </div>
+
+          <!-- Caixa de horário -->
+          <div class="rv-timebox">
+            <div id="rv-status">OBSERVADO:</div>
+            <small id="rv-time">--/--/----, --:--:--</small>
+          </div>
+
+          <!-- Contêiner do mapa -->
+          <div id="radarOSM"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Satélite (direita) -->
+    <div class="col-lg-6 d-flex">
+      <div class="labinstru-card w-100 h-100">
+        <h2>Satélite GOES-19 (Canal 13)</h2>
+        <div class="alert alert-info py-2">Fonte: CPTEC/INPE</div>
+        <div class="embed-wrapper">
+          <iframe src="https://www.cptec.inpe.br/dsat/?product=ch13_noaa&product_opacity=8&zoom=8&x=3530.0000&y=2888.0000&animate=true&t=200.00&options=false&static=true"></iframe>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  // ===== CONFIG =====
+  const CENTER = [-3.09, -60.02];
+  const START_ZOOM = 10;                     // zoom fixo
+  const COLOR_SCHEME = 4, SMOOTH = 1, SNOW = 1;
+  const FRAME_INTERVAL_MS = 650;
+
+  // ===== MAPA BASE (FIXO) =====
+  const map = L.map('radarOSM', {
+    center: CENTER,
+    zoom: START_ZOOM,
+    minZoom: START_ZOOM,
+    maxZoom: START_ZOOM,
+    zoomControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    touchZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    inertia: false
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: START_ZOOM,
+    minZoom: START_ZOOM,
+    interactive: false,
+    attribution: '&copy; OpenStreetMap | Radar: © RainViewer'
+  }).addTo(map);
+
+  // ====== CONTORNO (GeoJSON estático via staticfiles) ======
+  const CONTORNO_URL = "{% static 'geo/contorno_manaus.geojson' %}";
+
+  // Pane acima do overlay do radar (garante visibilidade do traço)
+  map.createPane('contornoPane');
+  map.getPane('contornoPane').style.zIndex = '450';
+
+  fetch(CONTORNO_URL, { cache: 'no-store' })
+    .then(r => r.json())
+    .then(geo => {
+      L.geoJSON(geo, {
+        pane: 'contornoPane',
+        style: {
+          color: '#0e4a38',  // verde LabInstru
+          weight: 3,
+          fillOpacity: 0
+        }
+      }).addTo(map);
+      // Se quiser centralizar pelo contorno (zoom é fixo, então só pan):
+      // const bounds = contorno.getBounds();
+      // map.panTo(bounds.getCenter());
+    })
+    .catch(err => console.error('Falha ao carregar contorno:', err));
+
+  // ===== ESTADO / RAINVIEWER =====
+  const statusEl = document.getElementById('rv-status');
+  const timeEl   = document.getElementById('rv-time');
+  const btnBack  = document.getElementById('rv-back');
+  const btnPlay  = document.getElementById('rv-play');
+  const btnNext  = document.getElementById('rv-next');
+
+  let host = '';
+  let frames = [];     // [{time, path}]
+  let pastCount = 0;
+  let idx = 0;
+  let overlay = null;
+  let timer = null;    // começa pausado
+
+  async function loadFrames() {
+    try {
+      const res = await fetch('https://api.rainviewer.com/public/weather-maps.json', { cache: 'no-store' });
+      const wm = await res.json();
+
+      host = wm.host || 'https://tilecache.rainviewer.com';
+      const past = (wm.radar && wm.radar.past) ? wm.radar.past : [];
+      const nowcast = (wm.radar && wm.radar.nowcast) ? wm.radar.nowcast : [];
+      pastCount = past.length;
+      frames = past.concat(nowcast);
+
+      if (!frames.length) throw new Error('Sem frames do radar.');
+
+      // começa no 1º de previsão (se houver), senão no último observado
+      idx = (nowcast.length ? past.length : frames.length - 1);
+      show(idx);
+
+      // AUTO-PLAY
+      setTimeout(() => play(), 150);
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = 'ERRO:';
+      timeEl.textContent = 'Falha ao carregar radar.';
+    }
+  }
+
+  function buildUrl(frame) {
+    return `${host}${frame.path}/256/{z}/{x}/{y}/${COLOR_SCHEME}/${SMOOTH}_${SNOW}.png`;
+  }
+
+  function formatTs(ts) {
+    return new Date(ts * 1000).toLocaleString('pt-BR', { hour12:false });
+  }
+
+  function show(i) {
+    const frame = frames[i];
+    if (!frame) return;
+    if (overlay) map.removeLayer(overlay);
+
+    overlay = L.tileLayer(buildUrl(frame), {
+      opacity: 0.78,
+      zIndex: 400,
+      maxZoom: START_ZOOM,
+      minZoom: START_ZOOM,
+      interactive: false
+    });
+    overlay.addTo(map);
+
+    statusEl.textContent = (i < pastCount) ? 'OBSERVADO:' : 'PREVISÃO:';
+    timeEl.textContent = formatTs(frame.time);
+  }
+
+  function play() {
+    if (timer) return;
+    timer = setInterval(() => { idx = (idx + 1) % frames.length; show(idx); }, FRAME_INTERVAL_MS);
+    btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
+  }
+
+  function pause() {
+    if (timer) { clearInterval(timer); timer = null; }
+    btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
+  }
+
+  // Controles
+  btnBack.addEventListener('click', (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    pause(); idx = (idx - 1 + frames.length) % frames.length; show(idx);
+  });
+  btnNext.addEventListener('click', (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    pause(); idx = (idx + 1) % frames.length; show(idx);
+  });
+  btnPlay.addEventListener('click', (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    (timer ? pause() : play());
+  });
+
+  loadFrames();
+})();
+</script>
+{% endblock %}

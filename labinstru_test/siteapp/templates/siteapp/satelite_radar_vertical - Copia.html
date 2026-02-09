@@ -1,0 +1,328 @@
+{% extends 'siteapp/base.html' %}
+{% load static %}
+{% block title %}Satélite e Radar – LabInstru{% endblock %}
+{% block content %}
+
+<style>
+  :root{
+    --selva-green:#0b3d2e;
+    --selva-green-700:#093426;
+    --map-h: {{ map_height|default:'640' }}px;
+    --scroll-offset: 96px; /* ajustado via JS */
+  }
+  html { scroll-behavior:smooth; }
+
+  /* ===== Barra pílula (igual à de Temperatura/Qualidade/etc.) ===== */
+  .condicoes-switch{
+    position:sticky; top:0; z-index:1020;
+    background:var(--selva-green);
+    border-radius:0;
+    box-shadow:0 6px 16px #001a2a66;
+  }
+  .condicoes-switch .toolbar{
+    max-width:1400px; margin:0 auto; padding:10px 14px;
+    display:flex; gap:14px; flex-wrap:wrap; align-items:center;
+  }
+  .condicoes-switch .btn-option{
+    display:inline-flex; align-items:center; justify-content:center;
+    height:42px; padding:8px 18px; border-radius:999px;
+    font-weight:700; text-decoration:none; letter-spacing:.2px;
+    background:transparent; color:#fff;
+    border:2px solid rgba(255,255,255,.95);
+    transition:transform .12s ease, box-shadow .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .condicoes-switch .btn-option:hover{ transform:translateY(-1px); }
+  .condicoes-switch .btn-option.active{
+    background:#fff; color:var(--selva-green);
+    border-color:#fff;
+    box-shadow:0 3px 10px rgba(0,0,0,.18);
+  }
+
+  /* ===== Layout ===== */
+  .labinstru-wrap{ padding:0; margin:0 0 18px 0; }
+  .labinstru-wrap h3{ display:none; }
+
+  /* Radar (Leaflet) */
+  #radarOSM{ width:100%; height:var(--map-h); border-radius:14px; overflow:hidden; background:#fff; }
+  .rv-toolbar{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    background:#fff; border:1px solid #e5eef8; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.12);
+    padding:6px 10px; display:flex; gap:10px; z-index:500;
+  }
+  .rv-toolbar .btn{ padding:6px 10px; border-radius:8px; font-size:14px; }
+  .rv-timebox{
+    position:absolute; top:14px; right:14px;
+    background:#fff; border:1px solid #d6e7f7; border-radius:12px; box-shadow:0 6px 18px rgba(0,0,0,.12);
+    padding:10px 12px; z-index:500; color:#145DA0; font-weight:700; line-height:1.25;
+    min-width:190px; text-align:left;
+  }
+  .rv-timebox small{ display:block; color:#0b335e; font-weight:600; }
+
+  /* Satélite (iframe) */
+  .embed-wrapper{
+    height: var(--map-h);
+    border-radius:14px; overflow:hidden; background:#eef6ff;
+  }
+  .embed-wrapper iframe{ width:100%; height:100%; border:0; display:block; }
+
+  /* Compensar cabeçalho fixo */
+  section[id^="sec-"]{ scroll-margin-top: var(--scroll-offset); }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<div class="container-fluid px-0">
+
+  <!-- ===== Barra pílula ===== -->
+  <nav class="condicoes-switch">
+    <div class="toolbar">
+      <a href="#sec-radar" class="btn-option active" aria-current="page">Radar</a>
+      <a href="#sec-sat"   class="btn-option">Satélite</a>
+    </div>
+  </nav>
+
+  <!-- ===== Seção 1: RADAR (em cima) ===== -->
+  <section id="sec-radar" class="labinstru-wrap">
+    <h3>Radar Meteorológico</h3>
+    <div style="position:relative">
+      <div class="rv-toolbar">
+        <button type="button" id="rv-back" class="btn btn-outline-primary" title="Anterior">
+          <i class="fa-solid fa-backward"></i>
+        </button>
+        <button type="button" id="rv-play" class="btn btn-primary" title="Reproduzir/Pausar">
+          <i class="fa-solid fa-play"></i>
+        </button>
+        <button type="button" id="rv-next" class="btn btn-outline-primary" title="Próximo">
+          <i class="fa-solid fa-forward"></i>
+        </button>
+      </div>
+
+      <div class="rv-timebox">
+        <div id="rv-status">OBSERVADO:</div>
+        <small id="rv-time">--/--/----, --:--:--</small>
+        <small>Fonte: RainViewer</small>
+      </div>
+
+      <div id="radarOSM"></div>
+    </div>
+  </section>
+
+  <!-- ===== Seção 2: SATÉLITE (embaixo) ===== -->
+  <section id="sec-sat" class="labinstru-wrap">
+    <h3>Satélite GOES-19 (Canal 13)</h3>
+    <div class="embed-wrapper">
+      <iframe
+        src="https://www.cptec.inpe.br/dsat/?product=ch13_noaa&product_opacity=8&zoom=8&x=3530.0000&y=2888.0000&animate=true&t=200.00&options=false&static=true"
+        title="Satélite GOES-19 – CPTEC/INPE" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen></iframe>
+    </div>
+    <div class="text-center" style="margin-top:8px">
+      <small>Fonte: CPTEC/INPE</small>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===== ScrollSpy (sem “duplo clique”): lock + cálculo robusto ===== -->
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+(function(){
+  const nav  = document.querySelector('.condicoes-switch');
+  const btns = Array.from(document.querySelectorAll('.btn-option'));
+  const secs = Array.from(document.querySelectorAll('section[id^="sec-"]'));
+  const btnByHash = Object.fromEntries(btns.map(b => [b.getAttribute('href'), b]));
+  let scrollOffset = 0;
+  let lockUntil = 0; // enquanto lock, o onScroll não troca o ativo
+
+  function syncOffsets(){
+    const navH = Math.ceil(nav?.offsetHeight || 0);
+    scrollOffset = navH + 14;
+    document.documentElement.style.setProperty('--scroll-offset', scrollOffset + 'px');
+    secs.forEach(s => s.style.scrollMarginTop = scrollOffset + 'px');
+  }
+
+  function setActive(hash){
+    btns.forEach(b => {
+      const isActive = b.getAttribute('href') === hash;
+      b.classList.toggle('active', isActive);
+      if (isActive) b.setAttribute('aria-current','page');
+      else b.removeAttribute('aria-current');
+    });
+  }
+
+  function onScroll(){
+    if (Date.now() < lockUntil) return; // ignora durante o scroll programático
+    // Usa uma linha-alvo ~25% da viewport abaixo da barra
+    const targetLine = window.scrollY + scrollOffset + window.innerHeight * 0.25;
+    let cur = secs[0]?.id || '';
+    for (const s of secs) {
+      const top = s.offsetTop;
+      const bottom = top + s.offsetHeight;
+      if (targetLine >= top && targetLine < bottom) { cur = s.id; break; }
+      if (targetLine >= top) cur = s.id;
+    }
+    setActive('#' + cur);
+  }
+
+  // Clique: scroll manual (preciso) e lock para não “voltar” no meio da animação
+  btns.forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const hash = b.getAttribute('href');
+      const target = document.querySelector(hash);
+      if (!target) return;
+
+      setActive(hash);
+      history.replaceState(null,'',hash);
+
+      const top = target.getBoundingClientRect().top + window.pageYOffset - scrollOffset;
+      lockUntil = Date.now() + 900; // 0.9s de tolerância
+      window.scrollTo({ top, behavior:'smooth' });
+
+      // garante ativo mesmo se não houver eventos de scroll (navegadores antigos)
+      setTimeout(()=>{ setActive(hash); }, 300);
+    });
+  });
+
+  function init(){
+    syncOffsets();
+    const startHash = btnByHash[location.hash] ? location.hash : '#'+(secs[0]?.id||'');
+    setActive(startHash);
+    onScroll();
+  }
+
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', ()=>{ syncOffsets(); onScroll(); });
+
+  (document.readyState==='loading'
+    ? document.addEventListener('DOMContentLoaded', init)
+    : init());
+})();
+</script>
+
+<!-- ===== Radar (Leaflet + RainViewer) — robusto ===== -->
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+(async function () {
+  try {
+    if (!window.L) {
+      await new Promise((ok, err) => {
+        window.addEventListener('load', () => window.L ? ok() : err(new Error('Leaflet não carregou')));
+      });
+    }
+  } catch (e) {
+    const host = document.getElementById('radarOSM');
+    if (host) host.innerHTML =
+      '<div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb"><b>Leaflet não carregou.</b> Verifique a rede/CDN ou remova o <code>defer</code> do script do Leaflet.</div>';
+    return;
+  }
+
+  const CENTER = [-3.09, -60.02];
+  const START_ZOOM = 10;
+  const COLOR_SCHEME = 4, SMOOTH = 1, SNOW = 1;
+  const FRAME_INTERVAL_MS = 650;
+
+  const map = L.map('radarOSM', {
+    center: CENTER,
+    zoom: START_ZOOM,
+    minZoom: START_ZOOM,
+    maxZoom: START_ZOOM,
+    zoomControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    touchZoom: false,
+    boxZoom: false,
+    keyboard: false,
+    inertia: false
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: START_ZOOM,
+    minZoom: START_ZOOM,
+    interactive: false,
+    attribution: '&copy; OpenStreetMap | Radar: © RainViewer'
+  }).addTo(map);
+
+  /* Contorno opcional */
+  try {
+    const url = "{% static 'geo/contorno_manaus.geojson' %}";
+    map.createPane('contornoPane');
+    map.getPane('contornoPane').style.zIndex = '450';
+    const gj = await fetch(url, { cache: 'no-store' }).then(r => r.json());
+    L.geoJSON(gj, { pane:'contornoPane', style:{ color:'#0e4a38', weight:3, fillOpacity:0 } }).addTo(map);
+  } catch(_) {}
+
+  const statusEl = document.getElementById('rv-status');
+  const timeEl   = document.getElementById('rv-time');
+  const btnBack  = document.getElementById('rv-back');
+  const btnPlay  = document.getElementById('rv-play');
+  const btnNext  = document.getElementById('rv-next');
+
+  let host = '';
+  let frames = [];
+  let pastCount = 0;
+  let idx = 0;
+  let overlay = null;
+  let timer = null;
+
+  function buildUrl(frame) {
+    return `${host}${frame.path}/256/{z}/{x}/{y}/${COLOR_SCHEME}/${SMOOTH}_${SNOW}.png`;
+  }
+  function formatTs(ts) {
+    return new Date(ts * 1000).toLocaleString('pt-BR', { hour12:false, timeZone:'America/Manaus' });
+  }
+
+  function show(i) {
+    const frame = frames[i];
+    if (!frame) return;
+    if (overlay) map.removeLayer(overlay);
+
+    overlay = L.tileLayer(buildUrl(frame), {
+      opacity: 0.78,
+      zIndex: 400,
+      maxZoom: START_ZOOM,
+      minZoom: START_ZOOM,
+      interactive: false,
+      crossOrigin: ''
+    }).addTo(map);
+
+    statusEl.textContent = (i < pastCount) ? 'OBSERVADO:' : 'PREVISÃO:';
+    timeEl.textContent   = formatTs(frame.time);
+  }
+
+  function play() {
+    if (timer) return;
+    timer = setInterval(() => { idx = (idx + 1) % frames.length; show(idx); }, FRAME_INTERVAL_MS);
+    btnPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
+  }
+  function pause() {
+    if (timer) { clearInterval(timer); timer = null; }
+    btnPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
+  }
+
+  btnBack?.addEventListener('click', (ev) => { ev.preventDefault(); pause(); idx = (idx - 1 + frames.length) % frames.length; show(idx); });
+  btnNext?.addEventListener('click', (ev) => { ev.preventDefault(); pause(); idx = (idx + 1) % frames.length; show(idx); });
+  btnPlay?.addEventListener('click', (ev) => { ev.preventDefault(); (timer ? pause() : play()); });
+
+  try {
+    const wm = await fetch('https://api.rainviewer.com/public/weather-maps.json', { cache:'no-store' }).then(r => r.json());
+    host = wm.host || 'https://tilecache.rainviewer.com';
+    const past    = (wm.radar && wm.radar.past)    ? wm.radar.past    : [];
+    const nowcast = (wm.radar && wm.radar.nowcast) ? wm.radar.nowcast : [];
+    pastCount = past.length;
+    frames = past.concat(nowcast);
+
+    if (!frames.length) throw new Error('Sem frames do radar.');
+
+    idx = (nowcast.length ? past.length : frames.length - 1);
+    show(idx);
+    setTimeout(() => play(), 150);
+  } catch (e) {
+    statusEl.textContent = 'ERRO:';
+    timeEl.innerHTML = 'Radar não pôde carregar.<br><small>Checar rede/CSP: <code>api.rainviewer.com</code> (CONNECT) e <code>tilecache.rainviewer.com</code> (IMG).</small>';
+  }
+})();
+</script>
+
+{% endblock content %}

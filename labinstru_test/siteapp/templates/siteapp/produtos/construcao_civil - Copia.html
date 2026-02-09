@@ -1,0 +1,41 @@
+{% extends "siteapp/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Construção Civil" %} | LabInstru{% endblock %}
+
+{% block content %}
+<div class="product-hero">
+  <h1>{% trans "Construção Civil" %}</h1>
+  <div class="sub">{% trans "Produto" %} • {% trans "Planejamento e segurança em obras" %}</div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-12 col-lg-7">
+      <p class="mb-2">
+        {% trans "Produto voltado ao apoio meteorológico para obras e operações, reduzindo atrasos e aumentando segurança com base em previsão e monitoramento." %}
+      </p>
+
+      <ul class="mb-0">
+        <li>{% trans "Alertas de chuva intensa e rajadas de vento" %}</li>
+        <li>{% trans "Janelas operacionais (quando é mais seguro executar atividades)" %}</li>
+        <li>{% trans "Relatórios de ocorrências meteorológicas por período" %}</li>
+        <li>{% trans "Suporte para planejamento diário e semanal" %}</li>
+      </ul>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="product-card">
+        <h5>{% trans "Entregáveis" %}</h5>
+        <ul class="mb-3">
+          <li>{% trans "Boletim diário" %}</li>
+          <li>{% trans "Alertas por WhatsApp/Email (opcional)" %}</li>
+          <li>{% trans "Relatório por obra" %}</li>
+        </ul>
+
+        <a class="btn btn-light w-100 fw-bold" href="{% url 'contato' %}">
+          <i class="fa-solid fa-paper-plane me-1"></i> {% trans "Falar com a equipe" %}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

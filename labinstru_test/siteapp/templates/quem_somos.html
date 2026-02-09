@@ -1,0 +1,58 @@
+
+{% extends 'siteapp/base.html' %}
+{% load static %}
+
+{% block content %}
+<h2 style="text-align:center; margin: 30px 0;">👥 Equipe do Projeto</h2>
+
+<style>
+.card-equipe {
+    background: #f3f8fd;
+    padding: 25px;
+    border-radius: 14px;
+    box-shadow: 0 2px 18px #1976d216;
+    margin: 20px;
+    text-align: center;
+    width: 90%;
+    max-width: 300px;
+}
+.card-equipe img {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 15px;
+}
+.card-equipe .nome {
+    font-weight: bold;
+    font-size: 1.15em;
+}
+.card-equipe .cargo {
+    font-size: 1em;
+    color: #666;
+}
+.card-equipe a {
+    font-size: 0.95em;
+    text-decoration: none;
+    color: #145DA0;
+}
+.grid-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+</style>
+
+<div class="grid-container">
+    {% for img, nome, cargo, lattes in nomes %}
+        <div class="card-equipe">
+            <img src="{% static 'siteapp/equipe/' %}{{ img }}" alt="{{ nome }}">
+            <div class="nome">{{ nome }}</div>
+            <div class="cargo">{{ cargo }}</div>
+            <div style="margin-top:8px;">
+                <a href="{{ lattes }}" target="_blank">Currículo</a>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

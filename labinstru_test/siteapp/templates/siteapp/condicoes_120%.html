@@ -1,0 +1,424 @@
+{% extends 'siteapp/base.html' %}
+{% load static %}
+{% block title %}Condições atuais da atmosfera – LabInstru{% endblock %}
+{% block content %}
+
+<style>
+  :root{
+    --selva-green:#0b3d2e;
+    --selva-green-700:#093426;
+    --map-h: {{ map_height|default:'640' }}px;
+    --scroll-offset: 96px; /* ajustado via JS */
+  }
+  html { scroll-behavior:smooth; }
+
+  /* ===== Barra de abas (sempre VERDE) ===== */
+  .condicoes-switch{
+    position:sticky; top:0; z-index:1020;
+    background:var(--selva-green);
+    border-radius:0;
+    box-shadow:0 6px 16px #001a2a66;
+  }
+  .condicoes-switch .toolbar{
+    max-width:1400px; margin:0 auto; padding:10px 14px;
+    display:flex; gap:14px; flex-wrap:wrap; align-items:center;
+  }
+  .condicoes-switch .btn-option{
+    display:inline-flex; align-items:center; justify-content:center;
+    height:42px; padding:8px 18px; border-radius:999px;
+    font-weight:700; text-decoration:none; letter-spacing:.2px;
+    background:transparent; color:#fff;
+    border:2px solid rgba(255,255,255,.95);
+    transition:transform .12s ease, box-shadow .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .condicoes-switch .btn-option:hover{ transform:translateY(-1px); }
+  .condicoes-switch .btn-option.active{
+    background:#fff; color:var(--selva-green);
+    border-color:#fff;
+    box-shadow:0 3px 10px rgba(0,0,0,.18);
+  }
+
+  /* ===== Layout ===== */
+  .labinstru-wrap{ padding:0; margin:0 0 18px 0; }
+  .labinstru-wrap h3{ display:none; }
+  iframe{ width:100%; height:var(--map-h); border:0; border-radius:14px; }
+
+  /* Leaflet */
+  #map-virt{ width:100%; height:var(--map-h); border-radius:14px; overflow:hidden; background:#fff; }
+  .leaflet-control-container .lab-legend,
+  .leaflet-control-container .lab-source {
+    background:rgba(255,255,255,.96);
+    padding:10px 12px;
+    border-radius:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+    font-family:system-ui,Segoe UI,Arial,sans-serif;
+  }
+
+  /* Compensar cabeçalho fixo */
+  section[id^="sec-"]{ scroll-margin-top: var(--scroll-offset); }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<div class="container-fluid px-0">
+  <nav class="condicoes-switch">
+    <div class="toolbar">
+      <a href="#sec-mapa"  class="btn-option active" aria-current="page">Temperatura do Ar</a>
+      <a href="#sec-ar"    class="btn-option">Qualidade do Ar</a>
+      <a href="#sec-virt"  class="btn-option">Estações Virtuais</a>
+      <a href="#sec-video" class="btn-option">Câmera ao vivo</a>
+    </div>
+  </nav>
+
+  <section id="sec-mapa" class="labinstru-wrap">
+    <h3>Temperatura Real</h3>
+    <iframe src="{{ mapa_temp_iframe|default:'/embed/maps/mapa_temp_real.html' }}"
+            height="{{ map_height|default:'640' }}" loading="lazy"
+            style="height:var(--map-h)"></iframe>
+  </section>
+
+  <section id="sec-ar" class="labinstru-wrap">
+    <h3>Qualidade do Ar</h3>
+    <iframe src="{{ mapa_ar_iframe|default:'/embed/maps/mapa_pm25.html' }}"
+            height="{{ map_height|default:'640' }}" loading="lazy"
+            style="height:var(--map-h)"></iframe>
+  </section>
+
+  <!-- ===== ABA 3: ESTAÇÕES VIRTUAIS ===== -->
+  <section id="sec-virt" class="labinstru-wrap">
+    <h3>Estações Virtuais</h3>
+    <div id="map-virt">
+      <noscript><div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb">
+        Ative o JavaScript para ver o mapa.
+      </div></noscript>
+    </div>
+  </section>
+
+  <!-- ===== ABA 4: Câmera ao vivo (YouTube Live do canal) ===== -->
+  <section id="sec-video" class="labinstru-wrap">
+    <h3>Câmera ao vivo</h3>
+    {% with chan_id="UC4sHhcVW9dmW4QtV8MZPuUg" %}
+    <iframe
+      src="https://www.youtube.com/embed/live_stream?channel={{ youtube_channel_id|default:chan_id }}&autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+      title="YouTube Live – Adriano Lima Pedrosa" loading="lazy"
+      allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
+      referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+      height="{{ map_height|default:'640' }}" style="height:var(--map-h)">
+    </iframe>
+    <div class="text-center" style="margin-top:8px">
+      <a href="https://youtube.com/@AdrianoLimaPedrosa/live" target="_blank" rel="noopener">
+        Abrir no YouTube (link fixo do canal)
+      </a>
+    </div>
+    {% endwith %}
+  </section>
+</div>
+
+<!-- ===== ScrollSpy corrigido (sem mudar cor da barra) ===== -->
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+(function(){
+  const nav  = document.querySelector('.condicoes-switch');
+  const btns = [...document.querySelectorAll('.btn-option')];
+  const secs = [...document.querySelectorAll('section[id^="sec-"]')];
+  const btnByHash = Object.fromEntries(btns.map(b => [b.getAttribute('href'), b]));
+  let scrollOffset = 0;
+
+  function syncOffsets(){
+    const navH = Math.ceil(nav?.getBoundingClientRect().height || 0);
+    scrollOffset = navH + 14; // folga
+    document.documentElement.style.setProperty('--scroll-offset', scrollOffset + 'px');
+    secs.forEach(s => s.style.scrollMarginTop = scrollOffset + 'px');
+  }
+
+  function setActive(hash){
+    btns.forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
+    const el = btnByHash[hash] || btns[0];
+    el.classList.add('active');
+    el.setAttribute('aria-current','page');
+  }
+
+  function currentSection(){
+    const y = scrollOffset + 1;
+    let cur = secs[0]?.id || '';
+    for(const s of secs){
+      const r = s.getBoundingClientRect();
+      if(r.top <= y && r.bottom > y){ cur = s.id; break; }
+      if(r.top <= y) cur = s.id;
+    }
+    return cur;
+  }
+
+  function onScroll(){
+    const hash = '#'+currentSection();
+    setActive(hash);
+    if(hash !== location.hash) history.replaceState(null,'',hash);
+  }
+
+  btns.forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const h = b.getAttribute('href');
+      setActive(h);
+      setTimeout(onScroll, 320); // após o smooth scroll
+    });
+  });
+
+  function init(){
+    syncOffsets();
+    if(location.hash && btnByHash[location.hash]) setActive(location.hash);
+    onScroll();
+  }
+
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', ()=>{ syncOffsets(); onScroll(); });
+  window.addEventListener('hashchange', onScroll);
+
+  (document.readyState==='loading'
+    ? document.addEventListener('DOMContentLoaded', init)
+    : init());
+})();
+</script>
+
+<!-- ===== Estações Virtuais (Leaflet + Open-Meteo) ===== -->
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+(function(){
+  const PRIMARY_MODEL="best_match";
+  const FRESH_TTL_SEC=600; // cache 10 min
+
+  const MUNICIPIOS=[
+    {nome:"Manaus",lat:-3.117034,lon:-60.025780},
+    {nome:"Manacapuru",lat:-3.299677,lon:-60.621353},
+    {nome:"Iranduba",lat:-3.279088,lon:-60.189230},
+    {nome:"Presidente Figueiredo",lat:-2.048636,lon:-60.023666},
+    {nome:"Rio Preto da Eva",lat:-2.698890,lon:-59.700000},
+    {nome:"Itacoatiara",lat:-3.138610,lon:-58.444960},
+    {nome:"Novo Airão",lat:-2.620830,lon:-60.943890},
+    {nome:"Careiro da Várzea",lat:-3.199000,lon:-59.822000},
+    {nome:"Autazes",lat:-3.579720,lon:-59.130830},
+    {nome:"Careiro",lat:-3.768700,lon:-60.368200},
+    {nome:"Itapiranga",lat:-2.740830,lon:-58.029440},
+    {nome:"Manaquiri",lat:-3.441670,lon:-60.461940},
+    {nome:"Silves",lat:-2.840830,lon:-58.209440},
+  ];
+
+  const TEMP_STOPS=[[20,"#90caf9"],[24,"#64b5f6"],[28,"#4fc3f7"],[30,"#81c784"],[32,"#fff176"],[34,"#ffb74d"],[36,"#ff8a65"],[38,"#ef5350"],[40,"#d32f2f"]];
+  const RH_STOPS  =[[20,"#fff3e0"],[40,"#ffe082"],[60,"#a5d6a7"],[80,"#4fc3f7"],[100,"#1565c0"]];
+  const RAIN_STOPS=[[0,"#e3f2fd"],[1,"#bbdefb"],[5,"#90caf9"],[10,"#64b5f6"],[20,"#42a5f5"],[40,"#1e88e5"]];
+
+  const hexToRgb=h=>{h=String(h||"#ccc").replace("#",""); if(h.length===3) h=[...h].map(x=>x+x).join(""); return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};}
+  const rgbToHex=(r,g,b)=>"#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  const colorScale=(stops,v,def="#ccc")=>{
+    if(v==null||Number.isNaN(v)) return def;
+    const n=stops.length; if(v<=stops[0][0]) return stops[0][1]; if(v>=stops[n-1][0]) return stops[n-1][1];
+    for(let i=1;i<n;i++){const [v1,c1]=stops[i-1],[v2,c2]=stops[i]; if(v<=v2){const t=(v-v1)/(v2-v1); const a=hexToRgb(c1),b=hexToRgb(c2); return rgbToHex(lerp(a.r,b.r,t),lerp(a.g,b.g,t),lerp(a.b,b.b,t));}}
+    return stops[n-1][1];
+  };
+  const fmt=(iso)=>{try{return new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Manaus"});}catch(_){return "—";}};
+  const badgeHTML=(txt,bg,diam=58,font=18,weight=800)=>`<div style="display:flex;align-items:center;justify-content:center;width:${diam}px;height:${diam}px;border-radius:50%;background:${bg};border:2px solid rgba(0,0,0,.35);font-weight:${weight};font-size:${font}px;color:#111;box-shadow:0 2px 10px rgba(0,0,0,.25)">${txt}</div>`;
+
+  const CK="virt_temp_rh_rain_osm_v4";
+  const loadCache=()=>{try{const raw=localStorage.getItem(CK); if(!raw) return null; const o=JSON.parse(raw); if(!o||!o.ts) return null; if((Date.now()-o.ts)/1000>FRESH_TTL_SEC) return null; return o.data;}catch(_){return null;}}
+  const saveCache=(data)=>{try{localStorage.setItem(CK, JSON.stringify({ts:Date.now(), data}));}catch(_){}}  
+
+  async function fetchOM(lat,lon,model){
+    const mk=(v)=>{const base="https://api.open-meteo.com/v1/forecast"; const p=new URLSearchParams({latitude:String(lat),longitude:String(lon)});
+      if(v===1){ p.set("current","temperature_2m,relative_humidity_2m,precipitation"); p.set("hourly","temperature_2m,relative_humidity_2m,precipitation"); p.set("past_days","1"); p.set("forecast_days","1"); p.set("timezone","America/Manaus"); if(model && model!=="best_match") p.set("models",model);}
+      else if(v===2){ p.set("current_weather","true"); p.set("hourly","temperature_2m,relative_humidity_2m,precipitation"); p.set("past_days","1"); p.set("timezone","America/Manaus");}
+      else{ p.set("current","temperature_2m,relative_humidity_2m,precipitation"); p.set("hourly","temperature_2m,relative_humidity_2m,precipitation"); p.set("past_days","1"); p.set("forecast_days","1");}
+      return `${base}?${p.toString()}`; };
+    for(const v of [1,2,3]){
+      try{ const r=await fetch(mk(v)); if(r.ok) return await r.json(); }catch(e){ }
+    }
+    throw new Error("Open-Meteo indisponível");
+  }
+  function pickLatest(json,key){
+    let curVal=null, curIso=null;
+    if(json.current && key in json.current){ curVal=json.current[key]; curIso=json.current.time||null; }
+    else if(json.current_weather && key==="temperature_2m"){ curVal=json.current_weather.temperature; curIso=json.current_weather.time||null; }
+    const nowRef=curIso?new Date(curIso):new Date();
+    let bestVal=curVal, bestIso=curIso, org=curVal!=null?"current":"";
+    const times=json.hourly?.time, arr=json.hourly?.[key];
+    if(times && arr && times.length===arr.length && times.length>0){
+      let idx=arr.length-1; for(let i=arr.length-1;i>=0;i--){ if(new Date(times[i])<=nowRef){ idx=i; break; } }
+      const hv=arr[idx], iso=times[idx];
+      if(hv!=null && !Number.isNaN(hv) && (!bestIso || new Date(iso)>new Date(bestIso))){ bestVal=hv; bestIso=iso; org="hourly"; }
+    }
+    return [bestVal,bestIso,org||"hourly"];
+  }
+  function extract(city,json){
+    if(!json) return null;
+    const [tVal,tIso,tOrg]=pickLatest(json,"temperature_2m");
+    const [rhVal,rhIso,rhOrg]=pickLatest(json,"relative_humidity_2m");
+    const [pVal,pIso,pOrg]=pickLatest(json,"precipitation");
+    const anyIso=tIso||rhIso||pIso||null;
+    return {nome:city.nome, lat:city.lat, lon:city.lon,
+      t:{val:tVal,iso:tIso,org:tOrg},
+      rh:{val:rhVal,iso:rhIso,org:rhOrg},
+      pr:{val:pVal,iso:pIso,org:pOrg},
+      updated_any:anyIso};
+  }
+  async function getAll(){
+    const cached=loadCache(); if(cached) return cached;
+    const prim=await Promise.allSettled(MUNICIPIOS.map(c=>fetchOM(c.lat,c.lon,PRIMARY_MODEL)));
+    const out=await Promise.all(MUNICIPIOS.map(async (c,i)=>{
+      let obj=prim[i].status==="fulfilled" ? extract(c,prim[i].value) : null;
+      const needsFallback=!obj || ((obj.t?.val==null||Number.isNaN(obj.t?.val)) && (obj.rh?.val==null||Number.isNaN(obj.rh?.val)) && (obj.pr?.val==null||Number.isNaN(obj.pr?.val)));
+      if(needsFallback){ try{ const alt=await fetchOM(c.lat,c.lon,null); obj=extract(c,alt)||obj; }catch(_){ } }
+      return obj||{nome:c.nome,lat:c.lat,lon:c.lon};
+    }));
+    saveCache(out);
+    return out;
+  }
+
+  function gradBarMinMax(stops, unit){
+    const min=stops[0][0], max=stops[stops.length-1][0];
+    const gradient = stops.map(([v,c])=>{
+      const pct=((v-min)/(max-min)*100).toFixed(2);
+      return `${c} ${pct}%`;
+    }).join(', ');
+    return `
+      <div style="height:8px;border-radius:6px;overflow:hidden;background:linear-gradient(to right, ${gradient});"></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px">
+        <span>${min}${unit}</span><span>${max}${unit}</span>
+      </div>`;
+  }
+  function addLegend(map){
+    const box=L.control({position:'bottomleft'});
+    box.onAdd=()=>{ const d=L.DomUtil.create('div','lab-legend');
+      d.innerHTML = `
+        <div style="font-weight:800;font-size:14px;margin-bottom:6px">Escalas</div>
+        <div style="font-size:12px;margin-bottom:6px">
+          <div><b>Temperatura (°C)</b></div>
+          ${gradBarMinMax(TEMP_STOPS,'°C')}
+        </div>
+        <div style="font-size:12px;margin-bottom:6px">
+          <div><b>Umidade Relativa (%)</b></div>
+          ${gradBarMinMax(RH_STOPS,'%')}
+        </div>
+        <div style="font-size:12px">
+          <div><b>Chuva (mm, última hora)</b></div>
+          ${gradBarMinMax(RAIN_STOPS,'')}
+        </div>`;
+      return d;
+    }; box.addTo(map);
+  }
+  function addSourceBox(map,lastIso){
+    const info=L.control({position:'topright'});
+    info.onAdd=()=>{ const d=L.DomUtil.create('div','lab-source');
+      d.innerHTML=`<div style="font-size:13px;line-height:1.35">
+        <div><b>Fonte:</b> Open-Meteo (modelo: ${PRIMARY_MODEL} + fallback)</div>
+        <div><b>Atualização (local):</b> ${lastIso?fmt(lastIso):"—"}</div>
+      </div>`;
+      return d;
+    }; info.addTo(map);
+  }
+
+  function popupHTML(d){
+    const f=(x,suf="")=> (x==null||Number.isNaN(x)) ? "—" : `${(suf.includes("%")?Math.round(x):Number(x).toFixed(1))}${suf}`;
+    return `<div style="min-width:240px"><h4 style="margin:0 0 .4rem 0;font-size:16px">${d.nome}</h4>
+      <div style="font-size:14px;line-height:1.45">
+        <div><b>Temperatura:</b> ${f(d.t?.val," °C")} <span style="color:#666">(${d.t?.org||"—"})</span></div>
+        <div><b>Umidade Relativa:</b> ${f(d.rh?.val," %")} <span style="color:#666">(${d.rh?.org||"—"})</span></div>
+        <div><b>Chuva (últ. hora):</b> ${f(d.pr?.val," mm")} <span style="color:#666">(${d.pr?.org||"—"})</span></div>
+        <hr style="margin:.5rem 0;border:none;border-top:1px solid #ddd">
+        <div><b>Lat:</b> ${d.lat.toFixed(5)} • <b>Lon:</b> ${d.lon.toFixed(5)}</div>
+        <div><b>Atualização (local):</b> ${d.updated_any ? fmt(d.updated_any) : "—"}</div>
+      </div></div>`;
+  }
+  function addCityLayers(map, d, groups){
+    const {fgT, fgRH, fgRAIN}=groups;
+    const mkBadge=(val,stops,fmtFn)=>{ const col=colorScale(stops,val,"#ccc"); const label=(val==null)?"—":fmtFn(val); return {col, html:badgeHTML(label,col)}; };
+    const t= mkBadge(d.t?.val,  TEMP_STOPS, v=>`${Number(v).toFixed(1)}°`);
+    const rh=mkBadge(d.rh?.val, RH_STOPS,  v=>`${Math.round(v)}%`);
+    const pr=mkBadge(d.pr?.val, RAIN_STOPS, v=>`${Number(v).toFixed(1)}`);
+    const pop={maxWidth:360}, ll=[d.lat,d.lon];
+
+    L.circleMarker(ll,{radius:18,color:"#333",weight:1,fill:true,fillColor:t.col,fillOpacity:.55}).bindPopup(popupHTML(d),pop).addTo(fgT);
+    L.marker(ll,{icon:L.divIcon({html:t.html,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d),pop).addTo(fgT);
+
+    L.circleMarker(ll,{radius:18,color:"#333",weight:1,fill:true,fillColor:rh.col,fillOpacity:.55}).bindPopup(popupHTML(d),pop).addTo(fgRH);
+    L.marker(ll,{icon:L.divIcon({html:rh.html,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d),pop).addTo(fgRH);
+
+    L.circleMarker(ll,{radius:18,color:"#333",weight:1,fill:true,fillColor:pr.col,fillOpacity:.55}).bindPopup(popupHTML(d),pop).addTo(fgRAIN);
+    L.marker(ll,{icon:L.divIcon({html:pr.html,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d),pop).addTo(fgRAIN);
+  }
+
+  /* Contorno GeoJSON (contexto ou fallback para static) */
+  const CONTORNO_URL = "{{ contorno_geojson_url|default:'' }}";
+  const CONTORNO_FALLBACK = "{% static 'geo/Mun_Manaus.geojson' %}";
+
+  async function addContorno(map, control){
+    try{
+      const url = CONTORNO_URL || CONTORNO_FALLBACK;
+      const resp = await fetch(url, {cache:'reload'});
+      if(!resp.ok) throw new Error('GeoJSON não encontrado');
+      const gj = await resp.json();
+      const border = L.geoJSON(gj, {
+        style: ()=>({color:'#0b3d2e', weight:2.5, opacity:0.9, fill:false}),
+        onEachFeature: (f,l)=> l.bindTooltip(f.properties?.name||f.properties?.NM_MUN||'Contorno', {sticky:true})
+      }).addTo(map);
+      control.addOverlay(border, "Contorno RMM");
+      return border;
+    }catch(e){
+      console.warn('Contorno GeoJSON não carregado:', e.message);
+      return null;
+    }
+  }
+
+  async function init(){
+    const host=document.getElementById('map-virt'); if(!host) return;
+
+    try{
+      await (window.L ? Promise.resolve()
+        : new Promise((ok,err)=>window.addEventListener('load', ()=>window.L?ok():err(new Error('Leaflet não carregou.')))));
+    }catch(e){
+      host.innerHTML='<div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb">Leaflet não carregou. Verifique a rede/CDN.</div>';
+      return;
+    }
+
+    try{
+      const map=L.map('map-virt',{zoomControl:true,attributionControl:true}).setView([-3.11,-60.02],9);
+      L.control.scale({imperial:false}).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+
+      const fgT=L.layerGroup().addTo(map),
+            fgRH=L.layerGroup(),
+            fgRAIN=L.layerGroup();
+
+      const data=await getAll();
+      const bounds=[]; let last=null;
+
+      data.forEach(d=>{
+        if(!d) return;
+        addCityLayers(map,d,{fgT,fgRH,fgRAIN});
+        bounds.push([d.lat,d.lon]);
+        const cand=d.updated_any?new Date(d.updated_any):null;
+        if(cand && (!last || cand>last)) last=cand;
+      });
+
+      if(bounds.length>0) map.fitBounds(bounds,{padding:[10,10]});
+
+      const control = L.control.layers(null, {
+        "Temperatura (°C)":fgT,
+        "Umidade Relativa (%)":fgRH,
+        "Chuva (mm, última hora)":fgRAIN
+      }, {collapsed:false, position:"topleft"}).addTo(map);
+
+      addContorno(map, control);
+      addLegend(map);
+      addSourceBox(map, last?last.toISOString():null);
+    }catch(err){
+      console.error('Falha ao montar Estações Virtuais:', err);
+      document.getElementById('map-virt').innerHTML =
+        '<div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb"><b>Não foi possível carregar dados do Open-Meteo.</b></div>';
+    }
+  }
+
+  (document.readyState==='loading'
+    ? document.addEventListener('DOMContentLoaded', init)
+    : init());
+})();
+</script>
+
+{% endblock content %}

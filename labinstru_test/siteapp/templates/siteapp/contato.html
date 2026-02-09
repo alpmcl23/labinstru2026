@@ -1,0 +1,168 @@
+{% extends 'siteapp/base.html' %}
+{% block title %}Contato – LabInstru{% endblock %}
+
+{% block content %}
+
+<style>
+  :root{ --lab-green: var(--selva-green-600, #0e4a38); }
+
+  .labinstru-card--green{
+    background: var(--lab-green);
+    color:#fff;
+    border: none;
+    border-radius: 14px;
+    padding: 1.25rem 1.25rem 1rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,.12);
+  }
+  .labinstru-card--green h2,
+  .labinstru-card--green h3,
+  .labinstru-card--green .contact-title{ color:#fff; }
+  .labinstru-card--green a{ color:#fff; text-decoration: underline; }
+  .labinstru-card--green a:hover{ text-decoration: none; opacity:.9; }
+
+  .contact-ico{ font-size:40px; line-height:1; color:#fff; }
+  .contact-title{ font-weight:700; margin-top:8px; }
+  .contact-sub{ opacity:.95; }
+  .contact-hr{ border:0; border-top:2px solid rgba(255,255,255,.6); margin-top:22px; }
+
+  .labinstru-card--green .form-label{ color:#fff; font-weight:600; }
+  .labinstru-card--green .form-control{
+    background:#fff; color:var(--lab-green);
+    border:1px solid rgba(255,255,255,.35);
+  }
+  .labinstru-card--green .form-control::placeholder{ color:#5b7a70; }
+  .labinstru-card--green .form-control:focus{
+    border-color:#fff; box-shadow:0 0 0 .2rem rgba(255,255,255,.25);
+  }
+
+  .btn-on-green{
+    background:#fff; color:var(--lab-green); border:0;
+    font-weight:600;
+  }
+  .btn-on-green:hover{ background:#f3f3f3; color:var(--lab-green); }
+  .btn-on-green-outline{
+    background:transparent; color:#fff; border:2px solid #fff; font-weight:600;
+  }
+  .btn-on-green-outline:hover{ background:rgba(255,255,255,.12); color:#fff; }
+</style>
+
+{# ---- ALERTAS DE STATUS DO ENVIO ---- #}
+{% if ok %}
+  <div class="alert alert-success alert-dismissible fade show" role="alert" id="contato-alert">
+    <i class="fas fa-check-circle me-1"></i>
+    E-mail enviado com sucesso! Entraremos em contato em breve.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+  </div>
+{% endif %}
+{% if send_error %}
+  <div class="alert alert-danger alert-dismissible fade show" role="alert" id="contato-alert">
+    <i class="fas fa-triangle-exclamation me-1"></i>
+    Não foi possível enviar o e-mail agora. Tente novamente.
+    <small class="d-block mt-1">{{ send_error }}</small>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+  </div>
+{% endif %}
+
+<!-- Linha de contatos rápida (card verde) -->
+<div class="labinstru-card--green mb-3">
+  <div class="row text-center align-items-center gy-4 justify-content-center">
+    <div class="col-12 col-md-6">
+      <i class="fa-solid fa-envelope contact-ico"></i>
+      <div class="contact-title">E-mail</div>
+      <div class="contact-sub">
+        <a href="mailto:mloliveira@uea.edu.br">mloliveira@uea.edu.br</a>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <i class="fa-brands fa-instagram contact-ico"></i>
+      <div class="contact-title">Instagram</div>
+      <div class="contact-sub">
+        <a href="https://instagram.com/lab.instru" target="_blank">@lab.instru</a>
+      </div>
+    </div>
+  </div>
+  <hr class="contact-hr">
+</div>
+
+<!-- Card informativo (verde) -->
+<div class="labinstru-card--green mb-3">
+ <p class="mb-2"><strong>Para agendar uma visita ao LabInstru e conhecer nossos projetos, preencha o formulário abaixo com:</strong></p>
+  <ul class="mb-0">
+    <li>Nome da instituição de ensino</li>
+    <li>Curso ou nível de ensino</li>
+    <li>Número de alunos</li>
+    <li>Objetivo da visita</li>
+  </ul>
+</div>
+
+<!-- Formulário (verde) -->
+<div class="labinstru-card--green">
+  <h3 class="h5 mb-3">Formulário de Contato</h3>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="text" name="website" id="id_website" style="display:none" autocomplete="off">
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label for="id_nome" class="form-label">Nome completo</label>
+        <input type="text" name="nome" id="id_nome" class="form-control"
+               value="{{ post.nome|default_if_none:''|default:'' }}">
+        {% if errors.nome %}<div class="text-warning small">{{ errors.nome }}</div>{% endif %}
+      </div>
+
+      <div class="col-md-6">
+        <label for="id_email" class="form-label">E-mail</label>
+        <input type="email" name="email" id="id_email" class="form-control"
+               value="{{ post.email|default_if_none:''|default:'' }}">
+        {% if errors.email %}<div class="text-warning small">{{ errors.email }}</div>{% endif %}
+      </div>
+
+      <div class="col-md-6">
+        <label for="id_instituicao" class="form-label">Instituição de ensino</label>
+        <input type="text" name="instituicao" id="id_instituicao" class="form-control"
+               value="{{ post.instituicao|default_if_none:''|default:'' }}">
+        {% if errors.instituicao %}<div class="text-warning small">{{ errors.instituicao }}</div>{% endif %}
+      </div>
+
+      <div class="col-md-6">
+        <label for="id_curso_nivel" class="form-label">Curso ou nível de ensino</label>
+        <input type="text" name="curso_nivel" id="id_curso_nivel" class="form-control"
+               value="{{ post.curso_nivel|default_if_none:''|default:'' }}">
+        {% if errors.curso_nivel %}<div class="text-warning small">{{ errors.curso_nivel }}</div>{% endif %}
+      </div>
+
+      <div class="col-md-4">
+        <label for="id_numero_alunos" class="form-label">Número de alunos</label>
+        <input type="number" name="numero_alunos" id="id_numero_alunos" class="form-control" min="1"
+               value="{{ post.numero_alunos|default_if_none:''|default:'' }}">
+        {% if errors.numero_alunos %}<div class="text-warning small">{{ errors.numero_alunos }}</div>{% endif %}
+      </div>
+
+      <div class="col-12">
+        <label for="id_objetivo" class="form-label">Objetivo da visita</label>
+        <textarea name="objetivo" id="id_objetivo" rows="4" class="form-control">{{ post.objetivo|default_if_none:''|default:'' }}</textarea>
+        {% if errors.objetivo %}<div class="text-warning small">{{ errors.objetivo }}</div>{% endif %}
+      </div>
+
+      <div class="col-md-6">
+        <label for="id_assunto" class="form-label">Assunto (opcional)</label>
+        <input type="text" name="assunto" id="id_assunto" class="form-control"
+               value="{{ post.assunto|default_if_none:''|default:'' }}">
+      </div>
+
+      <div class="col-12">
+        <label for="id_mensagem" class="form-label">Mensagem complementar (opcional)</label>
+        <textarea name="mensagem" id="id_mensagem" rows="5" class="form-control">{{ post.mensagem|default_if_none:''|default:'' }}</textarea>
+      </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+      <button type="submit" class="btn btn-on-green">
+        <i class="fas fa-paper-plane me-1"></i> Enviar
+      </button>
+      <button type="reset" class="btn btn-on-green-outline">Limpar</button>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

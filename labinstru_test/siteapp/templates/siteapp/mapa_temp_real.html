@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Temperatura do ar</title>
+<style>
+  body{
+    margin:0;
+    background:#000;
+    color:#fff;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial;
+  }
+  .wrap{
+    position:relative;
+    width:100%;
+    height:100vh;
+    overflow:hidden;
+    background:#111;
+    display:flex;
+    flex-direction:column;
+  }
+  .map-area{
+    flex:1;
+    min-height:0;
+  }
+  .header-info{
+    position:absolute;
+    top:8px; left:8px;
+    background:rgba(0,0,0,.6);
+    color:#fff;
+    padding:6px 10px;
+    font-size:13px;
+    line-height:1.35;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,.2);
+    box-shadow:0 10px 24px rgba(0,0,0,.6);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header-info">
+    <div><strong>Temperatura do Ar (°C)</strong></div>
+    <div>Atualizado: {{ last_update }}</div>
+  </div>
+
+  <div class="map-area">
+    {# Aqui vai seu mapa folium real #}
+    {% if mapa_temp_html %}
+      {{ mapa_temp_html|safe }}
+    {% else %}
+      <div style="color:#fff;display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;padding:20px;text-align:center;">
+        [MAPA DE TEMPERATURA AQUI] <br>
+        (substituir por folium/leaflet gerado no backend)
+      </div>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

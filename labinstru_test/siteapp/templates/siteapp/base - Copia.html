@@ -1,0 +1,317 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'pt' }}">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}LabInstru{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap + Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --selva-green:#0b3d2e; --selva-green-700:#093426; --selva-accent:#32b68a;
+      --selva-text:#f3faf7; --selva-text-dim:#cfe5dd;
+    }
+    body{ background-color:#f8fafc; }
+    .sidebar{
+      min-height:100vh;
+      background:linear-gradient(180deg,var(--selva-green),var(--selva-green-700));
+      padding:20px; color:var(--selva-text); border-right:0;
+    }
+    .sidebar h6{ color:var(--selva-text-dim); letter-spacing:.02em; }
+    .sidebar .nav-link{
+      display:flex; align-items:center; gap:.55rem;
+      font-weight:600; color:var(--selva-text);
+      padding:.55rem .75rem; border-radius:.6rem; transition:.15s;
+    }
+    .sidebar .nav-link:hover{
+      color:#fff; background:rgba(255,255,255,.10)!important;
+      text-decoration:none; transform:translateX(2px);
+    }
+    .sidebar .nav-link.active{
+      color:#fff!important; background:rgba(255,255,255,.18)!important;
+      box-shadow:inset 3px 0 0 0 var(--selva-accent);
+    }
+    .content{ padding:30px; }
+    @media (max-width:767.98px){ .sidebar{ min-height:auto; } }
+
+    /* Idiomas (bandeiras circulares) */
+    .lang-btn{
+      width:48px; height:48px; padding:0; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      border:0; background:transparent; overflow:hidden; transition:.08s;
+    }
+    .lang-btn:hover{ transform:translateY(-1px); }
+    .lang-btn.active-lang{ transform:scale(1.06); box-shadow:0 4px 12px rgba(0,0,0,.25); }
+    .flag-icon{ width:100%; height:100%; object-fit:cover; display:block; border-radius:50%; }
+    .lang-top{ display:flex; justify-content:center; align-items:center; gap:.6rem; margin-bottom:.5rem; }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="container-fluid">
+  <div class="row">
+    {% with current=request.resolver_match.url_name %}
+    <nav class="col-12 col-md-3 col-lg-2 sidebar">
+
+      <!-- Idiomas topo (desktop) -->
+      <form action="{% url 'set_language' %}" method="post"
+            class="lang-top d-none d-md-flex" data-lang-switcher="true"
+            aria-label="{% trans 'Selecionar idioma' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" name="language" value="pt"
+                class="lang-btn {% if LANGUAGE_CODE|slice:':2' == 'pt' %}active-lang{% endif %}"
+                aria-label="{% trans 'Português' %}">
+          <img src="{% static 'img/flags/pt.svg' %}" alt="" class="flag-icon" width="48" height="48">
+        </button>
+        <button type="submit" name="language" value="en"
+                class="lang-btn {% if LANGUAGE_CODE|slice:':2' == 'en' %}active-lang{% endif %}"
+                aria-label="{% trans 'Inglês' %}">
+          <img src="{% static 'img/flags/en.svg' %}" alt="" class="flag-icon" width="48" height="48">
+        </button>
+        <button type="submit" name="language" value="es"
+                class="lang-btn {% if LANGUAGE_CODE|slice:':2' == 'es' %}active-lang{% endif %}"
+                aria-label="{% trans 'Espanhol' %}">
+          <img src="{% static 'img/flags/es.svg' %}" alt="" class="flag-icon" width="48" height="48">
+        </button>
+      </form>
+
+      <!-- Botão menu (mobile) -->
+      <div class="d-flex align-items-center justify-content-end mb-3">
+        <button class="btn btn-outline-light btn-sm d-md-none" type="button"
+                data-bs-toggle="collapse" data-bs-target="#menuCollapse" aria-label="{% trans 'Abrir menu' %}">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+
+      <h6 class="text-uppercase small mb-2">{% trans "Menu" %}</h6>
+
+      <!-- Idiomas (mobile) -->
+      <div class="mb-3 d-md-none">
+        <label class="small" style="color:var(--selva-text-dim)">{% trans "Idioma" %}</label>
+        <form action="{% url 'set_language' %}" method="post" class="mt-1 d-flex gap-2" data-lang-switcher="true">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" name="language" value="pt"
+                  class="lang-btn flex-fill {% if LANGUAGE_CODE|slice:':2' == 'pt' %}active-lang{% endif %}"
+                  aria-label="{% trans 'Português' %}">
+            <img src="{% static 'img/flags/pt.svg' %}" alt="" class="flag-icon" width="44" height="44">
+          </button>
+          <button type="submit" name="language" value="en"
+                  class="lang-btn flex-fill {% if LANGUAGE_CODE|slice:':2' == 'en' %}active-lang{% endif %}"
+                  aria-label="{% trans 'Inglês' %}">
+            <img src="{% static 'img/flags/en.svg' %}" alt="" class="flag-icon" width="44" height="44">
+          </button>
+          <button type="submit" name="language" value="es"
+                  class="lang-btn flex-fill {% if LANGUAGE_CODE|slice:':2' == 'es' %}active-lang{% endif %}"
+                  aria-label="{% trans 'Espanhol' %}">
+            <img src="{% static 'img/flags/es.svg' %}" alt="" class="flag-icon" width="44" height="44">
+          </button>
+        </form>
+      </div>
+
+      <div id="menuCollapse" class="collapse d-md-block">
+        <div class="nav flex-column">
+          <a class="nav-link {% if current == 'home' %}active{% endif %}" href="{% url 'home' %}">
+            <i class="fas fa-home me-1"></i> {% trans "Página inicial" %}
+          </a>
+          <a class="nav-link {% if current == 'quem_somos' %}active{% endif %}" href="{% url 'quem_somos' %}">
+            <i class="fas fa-users me-1"></i> {% trans "Quem somos" %}
+          </a>
+          <a class="nav-link {% if current == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+            <i class="fas fa-chart-line me-1"></i> {% trans "Estação da EST" %}
+          </a>
+          <a class="nav-link {% if current == 'rede_hobo' %}active{% endif %}" href="{% url 'rede_hobo' %}">
+            <i class="fas fa-network-wired me-1"></i> {% trans "Rede de estações HOBO" %}
+          </a>
+          <a class="nav-link {% if current == 'condicoes' %}active{% endif %}" href="{% url 'condicoes' %}">
+            <i class="fas fa-clock me-1"></i> {% trans "O tempo agora" %}
+          </a>
+          <a class="nav-link {% if current == 'satelite_radar' %}active{% endif %}" href="{% url 'satelite_radar' %}">
+            <i class="fas fa-satellite me-1"></i> {% trans "Satélite e radar" %}
+          </a>
+          <a class="nav-link {% if current == 'estagio' %}active{% endif %}" href="{% url 'estagio' %}">
+            <i class="fas fa-graduation-cap me-1"></i> {% trans "Estágio Curricular" %}
+          </a>
+          <a class="nav-link {% if current == 'projetos' %}active{% endif %}" href="{% url 'projetos' %}">
+            <i class="fas fa-lightbulb me-1"></i> {% trans "Projetos" %}
+          </a>
+          <a class="nav-link {% if current == 'eventos' %}active{% endif %}" href="{% url 'eventos' %}">
+            <i class="fas fa-calendar-days me-1"></i> {% trans "Eventos" %}
+          </a>
+          <a class="nav-link {% if current == 'contato' %}active{% endif %}" href="{% url 'contato' %}">
+            <i class="fas fa-envelope me-1"></i> {% trans "Contato" %}
+          </a>
+        </div>
+      </div>
+    </nav>
+    {% endwith %}
+
+    <main class="col-12 col-md-9 col-lg-10 content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- Força existir cookie CSRF -->
+<form style="display:none">{% csrf_token %}</form>
+
+<!-- === ZEUS Widget === -->
+<style>
+  #zeus-btn{
+    position:fixed; right:18px; bottom:18px; z-index:9999; font-weight:700;
+    box-shadow:0 6px 16px rgba(0,0,0,.15);
+  }
+  #zeus-panel{
+    position:fixed; right:18px; bottom:76px; z-index:9999;
+    width:360px; max-width:95vw; display:none; flex-direction:column;
+    background:#f6f8fb; border:1.7px solid #d0e1f3; border-radius:12px; box-shadow:0 8px 20px #0002;
+  }
+  #zeus-header{
+    background:linear-gradient(90deg,#0e4a38 80%, #4ad1a8 100%);
+    color:#fff; padding:10px 12px; display:flex; align-items:center; gap:10px; border-radius:12px 12px 0 0;
+  }
+  #zeus-mensagens{ padding:10px; height:280px; overflow-y:auto; }
+  .z-assistant{ background:#e1eefc; padding:8px 12px; border-radius:8px; margin:6px 0; color:#17394a; }
+  .z-user{ background:#d2f5db; padding:8px 12px; border-radius:8px; margin:6px 0; text-align:right; color:#135c1a; }
+  .z-fontes { font-size:.85rem; color:#475569; margin-top:6px; }
+  .z-fontes a { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+</style>
+
+<button id="zeus-btn" class="btn btn-success">
+  <i class="fa-solid fa-bolt me-1"></i> Agente em desenvolvimento
+</button>
+
+<div id="zeus-panel" role="dialog" aria-label="Assistente ZEUS">
+  <div id="zeus-header">
+    <i class="fa-solid fa-bolt"></i>
+    <strong>ZEUS</strong>
+    <button class="btn btn-sm btn-light ms-auto" type="button" onclick="toggleZeus()">Fechar</button>
+  </div>
+  <div id="zeus-mensagens">
+    <div class="z-assistant">
+      Olá! ⚡ Sou o <b>ZEUS</b>, do LabInstru. Posso ajudar com <b>meteorologia</b> e com as abas do site.
+      Se quiser, pergunte: “Onde vejo os dados da estação?” ou “Explique El Niño em Manaus”. 🙂
+    </div>
+  </div>
+  <div class="p-2 d-flex gap-2">
+    <input id="zeus-input" class="form-control" placeholder="Pergunte sobre meteorologia ou o LabInstru..." maxlength="350">
+    <button class="btn btn-primary" type="button" onclick="sendZeus()">Enviar</button>
+  </div>
+</div>
+
+<script>
+  function toggleZeus(){
+    const p = document.getElementById('zeus-panel');
+    const open = p.style.display === 'flex';
+    p.style.display = open ? 'none' : 'flex';
+    if(!open){ document.getElementById('zeus-input').focus(); }
+  }
+  document.getElementById('zeus-btn').onclick = toggleZeus;
+
+  function getCookie(name){
+    let cookieValue = null;
+    if(document.cookie && document.cookie !== ''){
+      const cookies = document.cookie.split(';');
+      for(let i=0;i<cookies.length;i++){
+        const cookie = cookies[i].trim();
+        if(cookie.substring(0, name.length + 1) === (name + '=')){
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  async function sendZeus(){
+    const input = document.getElementById('zeus-input');
+    const msg = input.value.trim();
+    if(!msg) return;
+    input.value = '';
+    const box = document.getElementById('zeus-mensagens');
+
+    const userDiv = document.createElement('div');
+    userDiv.className = 'z-user';
+    userDiv.textContent = msg;
+    box.appendChild(userDiv);
+    box.scrollTop = box.scrollHeight;
+
+    let respDiv = document.createElement('div');
+    respDiv.className = 'z-assistant';
+    respDiv.textContent = 'Digitando…';
+    box.appendChild(respDiv);
+
+    let fontesDiv = document.createElement('div');
+    fontesDiv.className = 'z-fontes';
+    box.appendChild(fontesDiv);
+
+    box.scrollTop = box.scrollHeight;
+
+    try{
+      const r = await fetch("{% url 'api_zeus' %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',           // envia cookies (CSRF)
+        body: JSON.stringify({ pergunta: msg })
+      });
+
+      if(!r.ok){
+        respDiv.textContent = `(${r.status}) ⚠️ Tive um problema para responder agora. Tenta de novo em instantes.`;
+        return;
+      }
+
+      const js = await r.json();
+
+      respDiv.textContent = js.resposta || 'Sem resposta.';
+      fontesDiv.innerHTML = '';
+      if (Array.isArray(js.fontes) && js.fontes.length){
+        const title = document.createElement('div');
+        title.textContent = 'Fontes:';
+        title.style.fontWeight = '600';
+        fontesDiv.appendChild(title);
+
+        js.fontes.forEach((f, i)=>{
+          const a = document.createElement('a');
+          a.href = f.url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = `[${i+1}] ${f.titulo || f.url}`;
+          fontesDiv.appendChild(a);
+        });
+      }
+    }catch(e){
+      respDiv.textContent = '⚠️ Tive um problema para responder agora. Tenta de novo em instantes.';
+      fontesDiv.innerHTML = '';
+      console.error('ZEUS fetch error:', e);
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // Enviar com Enter
+  document.getElementById('zeus-input').addEventListener('keydown', (ev)=>{
+    if(ev.key === 'Enter' && !ev.shiftKey){
+      ev.preventDefault();
+      sendZeus();
+    }
+  });
+</script>
+
+<!-- Bootstrap bundle (necessário para o menu mobile) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

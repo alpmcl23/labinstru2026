@@ -1,0 +1,381 @@
+{% extends 'siteapp/base.html' %}
+{% block title %}Tempo agora – LabInstru{% endblock %}
+
+{% block content %}
+
+<style>
+  :root{
+    --map-h: {{ map_height|default:'640' }}px;
+    --selva-green:#0b3d2e;
+    --ink:#145DA0;
+    --badge-live:#e63946;
+    --card-bg:#ffffff;
+    --card-br:#e5eef8;
+    --shadow: 0 10px 22px rgba(0,0,0,.12);
+  }
+  html{ scroll-behavior:smooth; }
+
+  .pillbar{
+    position:sticky; top:0; z-index:1040;
+    background:var(--selva-green);
+    border-radius:16px;
+    margin:-6px 0 16px 0;
+    box-shadow:0 10px 26px rgba(0,0,0,.20);
+  }
+  .pillbar .wrap{
+    max-width:1400px; margin:0 auto;
+    padding:12px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+
+  .pill{
+    display:inline-flex; align-items:center; justify-content:center;
+    gap:8px; height:40px; padding:8px 16px; border-radius:999px;
+    background:transparent; color:#fff; border:2px solid rgba(255,255,255,.92);
+    font-weight:800; cursor:grab; user-select:none;
+    transition:transform .12s ease, box-shadow .15s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .pill:active{ cursor:grabbing; }
+  .pill:hover{ transform:translateY(-1px); }
+  .pill[data-kind="cam"] .dot{
+    width:10px;height:10px;border-radius:50%;background:var(--badge-live)
+  }
+  .pill.active{
+    background:#fff; color:var(--selva-green); border-color:#fff;
+    box-shadow:0 3px 10px rgba(0,0,0,.18);
+  }
+
+  .selectors{
+    margin-left:auto; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  .selectors select{
+    background:#fff; border:2px solid #d8e7f1; border-radius:999px;
+    padding:6px 12px; font-weight:700;
+  }
+  .clock-badge{
+    background:#fff; color:#0b3d2e; font-weight:800; border-radius:999px;
+    padding:8px 14px; display:flex; align-items:center; gap:8px; white-space:nowrap;
+  }
+
+  .cmp-grid{ display:grid; grid-template-columns:1fr; gap:22px; }
+  @media (min-width: 992px){
+    .cmp-grid{ grid-template-columns:1fr 1fr; }
+  }
+
+  .drop{
+    border:0; border-radius:14px; padding:8px;
+  }
+  .drop.dragover{
+    border:0; background:transparent;
+  }
+
+  .labinstru-card{
+    background:var(--card-bg);
+    border:1px solid var(--card-br);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    padding:8px 16px 16px;
+    display:flex; flex-direction:column; gap:0; min-height:120px;
+  }
+
+  .labinstru-card h2,
+  .labinstru-card .hint{ display:none !important; }
+
+  .labinstru-iframe{
+    width:100%; height:var(--map-h);
+    border:0; border-radius:12px; display:block;
+  }
+
+  .swapbar{
+    display:flex; justify-content:center; margin:4px 0 8px 0;
+  }
+  .swapbtn{
+    background:#145DA0; color:#fff; border:0;
+    border-radius:999px; padding:8px 14px; font-weight:800;
+    box-shadow:0 6px 16px rgba(0,0,0,.12);
+    transition:filter .12s ease;
+  }
+  .swapbtn:hover{ filter:brightness(1.05); }
+</style>
+
+<div class="container-fluid px-0">
+  <!-- Barra de seleção -->
+  <nav class="pillbar">
+    <div class="wrap">
+      <button class="pill" draggable="true" data-src="cptec" title="GOES-19 Canal 13 (CPTEC/INPE)">
+        <i class="fa-solid fa-satellite-dish"></i> Satélite
+      </button>
+
+      <button class="pill" draggable="true" data-src="windy" title="Radar no Windy">
+        <i class="fa-solid fa-wind"></i> Radar meteorológico
+      </button>
+
+      <button class="pill" draggable="true" data-src="camera" data-kind="cam" title="Câmera LabInstru (YouTube)">
+        <span class="dot"></span> Câmera LabInstru
+      </button>
+
+      <button class="pill" draggable="true" data-src="temp" title="Temperatura do ar">
+        <i class="fa-solid fa-temperature-half"></i> Temperatura do ar
+      </button>
+
+      <button class="pill" draggable="true" data-src="aq" title="Qualidade do Ar (PM2.5)">
+        <i class="fa-solid fa-smog"></i> Qualidade do Ar
+      </button>
+
+      <div class="selectors">
+        <strong style="color:#cfe5dd;"></strong>
+        <select id="sel-left" aria-label="Selecionar painel esquerdo">
+          <option value="cptec">Satélite</option>
+          <option value="windy">Radar meteorológico</option>
+          <option value="camera">Câmera LabInstru</option>
+          <option value="temp">Temperatura do ar</option>
+          <option value="aq">Qualidade do Ar</option>
+        </select>
+        <span style="color:#cfe5dd;font-weight:800">×</span>
+        <select id="sel-right" aria-label="Selecionar painel direito">
+          <option value="cptec">Satélite</option>
+          <option value="windy">Radar meteorológico</option>
+          <option value="camera">Câmera LabInstru</option>
+          <option value="temp">Temperatura do ar</option>
+          <option value="aq">Qualidade do Ar</option>
+        </select>
+
+        <div class="clock-badge" id="manaus-clock" aria-live="polite" title="Horário de Manaus (AMT)">
+          <i class="fa-regular fa-clock"></i> --:-- <span style="opacity:.85;">(Manaus)</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Grid dos dois painéis -->
+  <div class="cmp-grid">
+    <div class="drop" id="drop-left" aria-label="Solte aqui a pílula para o painel esquerdo">
+      <div class="labinstru-card" id="card-left">
+        <iframe class="labinstru-iframe" id="frame-left" title="Painel Esquerdo"
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen></iframe>
+      </div>
+    </div>
+
+    <div class="drop" id="drop-right" aria-label="Solte aqui a pílula para o painel direito">
+      <div class="labinstru-card" id="card-right">
+        <iframe class="labinstru-iframe" id="frame-right" title="Painel Direito"
+                loading="lazy"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <div class="swapbar">
+    <button class="swapbtn" id="swap-panels" type="button" title="Trocar Esquerda ↔ Direita">
+      ↔ Trocar lados
+    </button>
+  </div>
+</div>
+
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+(function(){
+
+  /* ===== Helpers YouTube ===== */
+  function extractYouTubeId(input){
+    if(!input) return "";
+    if(/^[A-Za-z0-9_-]{11}$/.test(input.trim())) return input.trim();
+    try{
+      const url = new URL(input.trim());
+      if(url.hostname.includes('youtu.be')){
+        const id = url.pathname.split('/').filter(Boolean)[0];
+        if(id && /^[A-Za-z0-9_-]{11}$/.test(id)) return id;
+      }
+      if(url.searchParams.has('v')){
+        const id = url.searchParams.get('v');
+        if(id && /^[A-Za-z0-9_-]{11}$/.test(id)) return id;
+      }
+      const parts = url.pathname.split('/').filter(Boolean);
+      const maybeId = parts[1] || parts[0];
+      if(maybeId && /^[A-Za-z0-9_-]{11}$/.test(maybeId)) return maybeId;
+    }catch(e){}
+    return "";
+  }
+
+  function buildEmbedFromVideo(linkOrId, {autoplay=true, mute=true}={}){
+    const id = extractYouTubeId(linkOrId);
+    const ap = autoplay ? 1 : 0;
+    const mt = mute ? 1 : 0;
+    const params = `autoplay=${ap}&mute=${mt}&playsinline=1&rel=0&modestbranding=1&enablejsapi=1`;
+    return id ? `https://www.youtube.com/embed/${id}?${params}` : "";
+  }
+
+  function buildLiveFromChannel(channelId, {autoplay=true, mute=true}={}){
+    if(!channelId) return "";
+    const ap = autoplay ? 1 : 0;
+    const mt = mute ? 1 : 0;
+    const params = `autoplay=${ap}&mute=${mt}&playsinline=1&rel=0&modestbranding=1`;
+    return `https://www.youtube.com/embed/live_stream?channel=${channelId}&${params}`;
+  }
+
+  /* Sanitizador pra garantir relativo nos mapas internos */
+  function toRelative(u){
+    if(!u) return "";
+    try{
+      const url = new URL(u, window.location.origin);
+      if (
+        url.hostname === '127.0.0.1' ||
+        url.hostname === 'localhost' ||
+        url.origin === window.location.origin
+      ){
+        return url.pathname + url.search + url.hash;
+      }
+    }catch(e){}
+    return u.replace(/^https?:\/\/[^/]+/i, '');
+  }
+
+  /* ===== Variáveis do Django / Fallbacks ===== */
+  const CHANNEL_ID = "{{ youtube_channel_id|default_if_none:''|escapejs }}";
+
+  // link fixo de fallback da câmera ao vivo
+  const FIXED_LIVE_LINK = "https://www.youtube.com/live/17hDxXBWwHY?si=wVD5iWTWrENcE_E-";
+
+  const LIVE_EMBED = CHANNEL_ID
+    ? buildLiveFromChannel(CHANNEL_ID, {autoplay:true, mute:true})
+    : buildEmbedFromVideo(FIXED_LIVE_LINK, {autoplay:true, mute:true});
+
+  /* ===== URLs que cada botão/pílula carrega ===== */
+  const URL_TEMP_RAW = "{{ mapa_temp_iframe|default:'/pt/embed/maps/mapa_temp_real.html'|escapejs }}";
+  const URL_AIR_RAW  = "{{ mapa_ar_iframe|default:'/pt/embed/maps/mapa_pm25.html'|escapejs }}";
+
+  const URL_TEMP = toRelative(URL_TEMP_RAW || '/pt/embed/maps/mapa_temp_real.html');
+  const URL_AIR  = toRelative(URL_AIR_RAW  || '/pt/embed/maps/mapa_pm25.html');
+
+  const urls = {
+    cptec:  "https://www.cptec.inpe.br/dsat/?product=ch13_noaa&product_opacity=6&zoom=5&x=3600.0000&y=2950.0000&animate=true&t=200.00&options=false&static=true",
+    windy:  "https://embed.windy.com/embed2.html?lat=-3.12&lon=-60.02&zoom=8&level=surface&overlay=radar&menu=&message=true&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&detailLat=-3.12&detailLon=-60.02&metricWind=km/h&metricTemp=%C2%B0C&radarRange=-1&lang=pt",
+    camera: LIVE_EMBED,
+    temp:   URL_TEMP,
+    aq:     URL_AIR
+  };
+
+  const frameL = document.getElementById('frame-left');
+  const frameR = document.getElementById('frame-right');
+  const selL   = document.getElementById('sel-left');
+  const selR   = document.getElementById('sel-right');
+
+  let nextSide = 'left';
+
+  function loadPanel(side, key){
+    const frame = (side==='left') ? frameL : frameR;
+
+    let src = urls[key];
+    if (key === 'temp' || key === 'aq') {
+      src = toRelative(src); // defende /pt/ direitinho
+    }
+
+    frame.src = src;
+
+    if (side==='left' && selL)  selL.value  = key;
+    if (side==='right' && selR) selR.value = key;
+  }
+
+  function setActivePill(key){
+    document.querySelectorAll('.pill').forEach(p=>{
+      p.classList.toggle('active', p.dataset.src===key);
+    });
+  }
+
+  // Clique / teclado / drag nas pílulas
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.setAttribute('tabindex', '0');
+
+    p.addEventListener('click', (e)=>{
+      const key = p.dataset.src;
+      let side;
+      if (e.shiftKey){ side='left'; }
+      else if (e.ctrlKey || e.metaKey || e.altKey){ side='right'; }
+      else { side=nextSide; nextSide = (nextSide==='left')?'right':'left'; }
+      if (urls[key]) {
+        loadPanel(side, key);
+        setActivePill(key);
+      }
+    });
+
+    p.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'||e.key===' '){
+        e.preventDefault();
+        p.click();
+      }
+    });
+
+    p.addEventListener('dragstart', ev=>{
+      ev.dataTransfer.setData('text/plain', p.dataset.src);
+    });
+  });
+
+  ['left','right'].forEach(side=>{
+    const drop = document.getElementById('drop-'+side);
+    drop.addEventListener('dragover', ev=>{
+      ev.preventDefault(); drop.classList.add('dragover');
+    });
+    drop.addEventListener('dragleave', ()=>{
+      drop.classList.remove('dragover');
+    });
+    drop.addEventListener('drop', ev=>{
+      ev.preventDefault(); drop.classList.remove('dragover');
+      const key = ev.dataTransfer.getData('text/plain');
+      if (urls[key]) {
+        loadPanel(side, key);
+        setActivePill(key);
+      }
+    });
+  });
+
+  selL?.addEventListener('change', ()=>{
+    loadPanel('left', selL.value);
+    setActivePill(selL.value);
+  });
+  selR?.addEventListener('change', ()=>{
+    loadPanel('right', selR.value);
+    setActivePill(selR.value);
+  });
+
+  document.getElementById('swap-panels')?.addEventListener('click', ()=>{
+    const a = frameL.src;
+    frameL.src = frameR.src;
+    frameR.src = a;
+  });
+
+  // Relógio Manaus
+  (function setupManausClock(){
+    const el = document.getElementById('manaus-clock');
+    if(!el) return;
+    const TZ = 'America/Manaus';
+    const SHOW_SECONDS = false;
+
+    function tick(){
+      const parts = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: TZ,
+        hour12: false,
+        hour:'2-digit',
+        minute:'2-digit',
+        second:'2-digit'
+      }).formatToParts(new Date()).reduce((acc,p)=>{
+        acc[p.type]=p.value;
+        return acc;
+      },{});
+      const hhmm = `${parts.hour}:${parts.minute}`;
+      const text = SHOW_SECONDS ? `${hhmm}:${parts.second}` : hhmm;
+      el.innerHTML = `<i class="fa-regular fa-clock"></i> ${text} <span style="opacity:.85;">(Manaus)</span>`;
+    }
+    tick();
+    setInterval(tick, 1000);
+  })();
+
+  // Inicial: Radar meteorológico × Câmera
+  loadPanel('left',  'windy');
+  loadPanel('right', 'camera');
+
+})();
+</script>
+
+{% endblock %}

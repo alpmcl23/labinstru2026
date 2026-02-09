@@ -1,0 +1,328 @@
+{% extends 'siteapp/base.html' %}
+{% block title %}Rede de Estações HOBO – LabInstru{% endblock %}
+
+{% block content %}
+
+<div id="hobopage">
+
+
+
+  <!-- ===== SELETOR (NÃO FIXO, CLASSE NOVA) ===== -->
+  <div class="hobo-switch shadow-sm" id="hobo-switch">
+    <div class="container-fluid d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="switch-label">Ver:</span>
+        <a href="#sec-mapa"  class="btn-option active" data-target="#sec-mapa"  aria-current="page">Localização</a>
+        <a href="#sec-dados" class="btn-option"        data-target="#sec-dados">Dados da estação</a>
+      </div>
+      <small class="text-white-50">Escolha para ir direto à seção</small>
+    </div>
+  </div>
+  <!-- /SELETOR -->
+
+  <div class="container-fluid px-0">
+    <div class="row g-0 mt-2">
+
+      <!-- S1: MAPA -->
+      <div class="col-12">
+        <div id="sec-mapa" class="scroll-target"></div>
+        <div class="card border-0 shadow-sm mb-2">
+          <div class="card-body p-2">
+            <h2 class="h6 fw-bold text-success mb-1">Localização das estações HOBO</h2>
+
+            <div class="map-box legend-host" data-link="#sec-mapa">
+              {% autoescape off %}{{ mapa_html }}{% endautoescape %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- S2: DADOS -->
+      <div class="col-12">
+        <div id="sec-dados" class="scroll-target"></div>
+        <div class="card border-0 shadow-sm mb-0">
+          <div class="card-body p-2">
+            <h2 class="h6 fw-bold text-success mb-2">Dados da estação</h2>
+
+            <div class="filters card card-body border-0 p-3 mb-2" style="background:#f8faf9;">
+              <form method="get" class="form-grid"
+                    style="display:grid; gap:12px 16px; align-items:end; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
+                <div>
+                  <label class="form-label" for="fvar">Variável</label>
+                  <select id="fvar" class="form-select" name="variavel">
+                    <option value="Precipitação" selected>Precipitação</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="fest">Estação</label>
+                  <select id="fest" class="form-select" name="estacao">
+                    {% for op in opcoes_estacoes %}
+                      <option value="{{ op.cod }}" {% if op.cod == estacao %}selected{% endif %}>{{ op.label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div style="max-width:130px">
+                  <label class="form-label" for="fano">Ano</label>
+                  <input id="fano" class="form-control" type="number" name="ano" value="{{ ano }}" min="2013" max="2020">
+                </div>
+                <div style="width:max-content">
+                  <button class="btn btn-success px-4">Atualizar</button>
+                </div>
+              </form>
+            </div>
+
+
+
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <span class="badge rounded-pill text-bg-light px-3 py-2">
+                <span class="me-1" style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#cfd4d9;border:1px solid #b9bfc6;vertical-align:-2px;"></span>
+                Células em <strong>cinza</strong> indicam <strong>dados ausentes</strong>.
+              </span>
+            </div>
+
+            <div class="legend-host" data-link="#sec-dados">
+              {% autoescape off %}{{ grafico_html }}{% endautoescape %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>
+  :root{
+    --map-h: 1100px;
+    --selva-green-600:#0e4a38;
+  }
+
+  /* ===== Barra do seletor (classe nova para escapar de estilos globais) ===== */
+  <style>
+  :root{
+    --map-h: 1100px;
+    --selva-green-600:#0e4a38;
+
+    /* calculadas via JS ao carregar/redimensionar */
+    --sticky-offset: 0px;   /* altura da navbar fixa (se houver) */
+    --switch-h: 52px;       /* altura da barra seletora */
+  }
+
+  /* ===== Barra do seletor: agora STICKY ===== */
+  .hobo-switch{
+    position: sticky;
+    top: var(--sticky-offset);
+    z-index: 1030;                /* acima do conteúdo */
+    background: var(--selva-green-600);
+    padding: .5rem .75rem;
+    transition: box-shadow .2s ease;
+  }
+  /* Sombra só quando “grudada” no topo (classe setada por JS) */
+  .hobo-switch.is-stuck{
+    box-shadow: 0 8px 18px rgba(0,0,0,.12);
+  }
+
+  /* REMOVA qualquer regra que neutralize sticky/fixed dentro do #hobopage */
+  /* (ex.: #hobopage .sticky-top, .fixed-top { position: static !important; ... }) */
+
+  .switch-label{ color:#e7fff5; font-weight:700; letter-spacing:.2px; }
+  .btn-option{
+    display:inline-block; padding:.45rem 1rem; border-radius:999px;
+    border:2px solid rgba(255,255,255,.75); color:#ffffff; text-decoration:none;
+    font-weight:600; transition: all .18s ease; background: transparent;
+  }
+  .btn-option:hover{ border-color:#ffffff; }
+  .btn-option.active{
+    background:#ffffff; color: var(--selva-green-600); border-color:#ffffff;
+    box-shadow:0 4px 14px rgba(0,0,0,.12);
+  }
+  .btn-option:focus, .btn-option:focus-visible{ outline:none; box-shadow:none; text-decoration:none; }
+
+  /* Âncoras/targets não ficam escondidos debaixo da barra sticky */
+  .scroll-target{
+    position: relative;
+    scroll-margin-top: calc(var(--sticky-offset) + var(--switch-h) + 12px);
+  }
+
+  html{ scroll-behavior: smooth; }
+
+  .map-box{ overflow:hidden; line-height:0; border-radius:12px; }
+  .map-box iframe, .map-box .folium-map{
+    display:block!important; width:100%!important; height:var(--map-h)!important;
+    border:0!important; border-radius:12px!important; overflow:hidden!important;
+  }
+
+  .legend-host, .legend-host *{ line-height:1.15; }
+  .card .leaflet-bottom { margin-bottom:10px; }
+  .card .leaflet-left   { margin-left:10px; }
+</style>
+
+  }
+  /* mata qualquer sticky/fixed herdado somente dentro desta página */
+  #hobopage .sticky-top,
+  #hobopage .fixed-top,
+  #hobopage .fixed-bottom,
+  #hobopage [style*="position:sticky"],
+  #hobopage [style*="position: fixed"]{
+    position: static !important; top:auto !important; bottom:auto !important; z-index:auto !important;
+  }
+
+  .switch-label{ color:#e7fff5; font-weight:700; letter-spacing:.2px; }
+  .btn-option{
+    display:inline-block; padding:.45rem 1rem; border-radius:999px;
+    border:2px solid rgba(255,255,255,.75); color:#ffffff; text-decoration:none;
+    font-weight:600; transition: all .18s ease; background: transparent;
+  }
+  .btn-option:hover{ border-color:#ffffff; }
+  .btn-option.active{ background:#ffffff; color: var(--selva-green-600); border-color:#ffffff; box-shadow:0 4px 14px rgba(0,0,0,.12); }
+  .btn-option:focus, .btn-option:focus-visible{ outline:none; box-shadow:none; text-decoration:none; }
+
+  .scroll-target{ position: relative; top: 0; }  /* aqui não há sticky, então sem offset */
+  html{ scroll-behavior: smooth; }
+
+  .map-box{ overflow:hidden; line-height:0; border-radius:12px; }
+  .map-box iframe, .map-box .folium-map{
+    display:block!important; width:100%!important; height:var(--map-h)!important;
+    border:0!important; border-radius:12px!important; overflow:hidden!important;
+  }
+
+  .legend-host, .legend-host *{ line-height:1.15; }
+  .card .leaflet-bottom { margin-bottom:10px; }
+  .card .leaflet-left   { margin-left:10px; }
+</style>
+
+<script>
+/* ===== Comportamento igual ao “Qualidade do ar”: clique + scroll-spy ===== */
+(function(){
+  function setActive(targetSelector){
+    document.querySelectorAll('.btn-option').forEach(btn=>{
+      const isActive = btn.getAttribute('data-target') === targetSelector;
+      btn.classList.toggle('active', isActive);
+      if(isActive) btn.setAttribute('aria-current','page'); else btn.removeAttribute('aria-current');
+    });
+  }
+
+  document.addEventListener('click', function(e){
+    const a = e.target.closest('.btn-option');
+    if(!a) return;
+    e.preventDefault();
+    const target = a.getAttribute('data-target');
+    const el = document.querySelector(target);
+    if (el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+    setActive(target);
+    history.replaceState(null, '', target);
+  }, true);
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    const hash = window.location.hash;
+
+    let target = '#sec-mapa';
+    if (view === 'dados') target = '#sec-dados';
+    if (hash === '#sec-mapa' || hash === '#sec-dados') target = hash;
+    setActive(target);
+
+    // Scroll-spy observando os hosts com data-link
+    const hosts = document.querySelectorAll('.legend-host[data-link]');
+    if ('IntersectionObserver' in window && hosts.length){
+      const io = new IntersectionObserver((entries)=>{
+        const vis = entries.filter(e=>e.isIntersecting)
+                           .sort((a,b)=> b.intersectionRatio - a.intersectionRatio)[0];
+        if(vis){
+          const link = vis.target.getAttribute('data-link');
+          setActive(link);
+        }
+      }, { root:null, threshold:[0.4,0.6,0.8], rootMargin:'-10% 0 -30% 0' });
+      hosts.forEach(h=> io.observe(h));
+    }
+  });
+})();
+</script>
+
+<script>
+/* ===== Clique + scroll-spy (já estavam no seu código) ===== */
+(function(){
+  function setActive(targetSelector){
+    document.querySelectorAll('.btn-option').forEach(btn=>{
+      const isActive = btn.getAttribute('data-target') === targetSelector;
+      btn.classList.toggle('active', isActive);
+      if(isActive) btn.setAttribute('aria-current','page'); else btn.removeAttribute('aria-current');
+    });
+  }
+
+  document.addEventListener('click', function(e){
+    const a = e.target.closest('.btn-option');
+    if(!a) return;
+    e.preventDefault();
+    const target = a.getAttribute('data-target');
+    const el = document.querySelector(target);
+    if (el){ el.scrollIntoView({behavior:'smooth', block:'start'}); }
+    setActive(target);
+    history.replaceState(null, '', target);
+  }, true);
+
+  function updateOffsets(){
+    const root = document.documentElement;
+    const nav =
+      document.querySelector('.navbar.fixed-top') ||
+      document.querySelector('#site-header.fixed-top') ||
+      document.querySelector('.fixed-top');
+
+    const switchBar = document.getElementById('hobo-switch');
+    const navH = nav ? Math.ceil(nav.getBoundingClientRect().height) : 0;
+    const swH  = switchBar ? Math.ceil(switchBar.getBoundingClientRect().height) : 52;
+
+    root.style.setProperty('--sticky-offset', navH + 'px');
+    root.style.setProperty('--switch-h',     swH  + 'px');
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    // alvo inicial
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    const hash = window.location.hash;
+    let target = '#sec-mapa';
+    if (view === 'dados') target = '#sec-dados';
+    if (hash === '#sec-mapa' || hash === '#sec-dados') target = hash;
+    setActive(target);
+
+    // offsets iniciais + ao redimensionar
+    updateOffsets();
+    window.addEventListener('resize', updateOffsets);
+
+    // Scroll-spy pelas áreas de conteúdo
+    const hosts = document.querySelectorAll('.legend-host[data-link]');
+    if ('IntersectionObserver' in window && hosts.length){
+      const io = new IntersectionObserver((entries)=>{
+        const vis = entries.filter(e=>e.isIntersecting)
+                           .sort((a,b)=> b.intersectionRatio - a.intersectionRatio)[0];
+        if(vis){
+          const link = vis.target.getAttribute('data-link');
+          setActive(link);
+        }
+      }, { root:null, threshold:[0.4,0.6,0.8],
+           rootMargin:'-10% 0 -30% 0' });
+      hosts.forEach(h=> io.observe(h));
+    }
+
+    // Detectar quando a barra fica grudada para adicionar sombra
+    const switchBar = document.getElementById('hobo-switch');
+    if (switchBar && 'IntersectionObserver' in window){
+      const sentry = document.createElement('div');
+      sentry.style.position = 'absolute';
+      sentry.style.top = '0';
+      sentry.style.height = '1px';
+      switchBar.parentNode.insertBefore(sentry, switchBar);
+
+      const stuckObs = new IntersectionObserver(([e])=>{
+        switchBar.classList.toggle('is-stuck', !e.isIntersecting);
+      }, { threshold: [1] });
+      stuckObs.observe(sentry);
+    }
+  });
+})();
+</script>
+
+
+{% endblock %}

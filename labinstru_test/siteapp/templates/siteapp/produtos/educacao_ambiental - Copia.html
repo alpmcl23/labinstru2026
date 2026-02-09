@@ -1,0 +1,41 @@
+{% extends "siteapp/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Educação Ambiental" %} | LabInstru{% endblock %}
+
+{% block content %}
+<div class="product-hero">
+  <h1>{% trans "Educação Ambiental" %}</h1>
+  <div class="sub">{% trans "Produto" %} • {% trans "Conteúdo didático e ações educativas" %}</div>
+
+  <div class="row g-3 mt-2">
+    <div class="col-12 col-lg-7">
+      <p class="mb-2">
+        {% trans "Produto focado em comunicação científica e educação ambiental, com materiais didáticos e conteúdos acessíveis sobre clima, tempo e impactos no cotidiano." %}
+      </p>
+
+      <ul class="mb-0">
+        <li>{% trans "Vídeos curtos e material educativo" %}</li>
+        <li>{% trans "Cartilhas e infográficos para escolas e projetos" %}</li>
+        <li>{% trans "Palestras e ações com comunidades (opcional)" %}</li>
+        <li>{% trans "Temas: chuva, calor, qualidade do ar e saúde" %}</li>
+      </ul>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="product-card">
+        <h5>{% trans "Entregáveis" %}</h5>
+        <ul class="mb-3">
+          <li>{% trans "Pacote de conteúdos" %}</li>
+          <li>{% trans "Roteiros e materiais de apoio" %}</li>
+          <li>{% trans "Calendário de publicações" %}</li>
+        </ul>
+
+        <a class="btn btn-light w-100 fw-bold" href="{% url 'contato' %}">
+          <i class="fa-solid fa-paper-plane me-1"></i> {% trans "Solicitar proposta" %}
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

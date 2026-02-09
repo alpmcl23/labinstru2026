@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="labinstru-card">
+    <h2>☀️ Condições Atuais da Atmosfera – Manaus</h2>
+    <p style='font-size: 0.95em; color: #888;'>⏳ Próxima atualização automática: {{ proxima }}</p>
+    <p>
+        <a href="?atualizar=1" class="btn btn-primary">🔄 Atualizar Agora</a>
+    </p>
+</div>
+
+<div class="labinstru-card">
+    <h2>M1 – Temperatura Real (PurpleAir)</h2>
+    {{ mapa_temp|safe }}
+</div>
+
+<div class="labinstru-card">
+    <h2>M2 – Qualidade do Ar (Virtual e Real)</h2>
+    {{ mapa_ar|safe }}
+</div>
+{% endblock %}

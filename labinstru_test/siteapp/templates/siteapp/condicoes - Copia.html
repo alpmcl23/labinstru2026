@@ -1,0 +1,362 @@
+{% extends 'siteapp/base.html' %}
+{% block title %}Condições atuais da atmosfera – LabInstru{% endblock %}
+{% block content %}
+
+<style>
+  :root{
+    --selva-green:#0b3d2e; --selva-green-700:#093426;
+    --map-h: {{ map_height }}px; /* altura padronizada dos mapas */
+  }
+  html { scroll-behavior: smooth; }
+
+  /* Barra verde fixa no topo */
+  .condicoes-switch{
+    position: sticky; top:0; z-index:1020;
+    background: var(--selva-green);
+    border-radius: 0 0 18px 18px;
+    box-shadow:0 6px 16px #001a2a66;
+  }
+  .condicoes-switch .toolbar{
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 10px 14px;
+    display:flex; gap:14px; flex-wrap:wrap;
+    justify-content: flex-start;
+    align-items:center;
+  }
+  .condicoes-switch .btn-option{
+    background: transparent;
+    color:#fff; font-weight:700; text-decoration:none;
+    padding:8px 16px; border-radius:999px;
+    border:2px solid rgba(255,255,255,.9);
+    transition:.15s;
+  }
+  .condicoes-switch .btn-option:hover{ transform:translateY(-1px); }
+  .condicoes-switch .btn-option.active{
+    background:#fff; color:var(--selva-green);
+    border-color:#fff;
+  }
+
+  /* Seções/âncoras */
+  .labinstru-wrap{ padding:0; margin:0 0 18px 0; }
+  .labinstru-wrap h3{ display:none; }
+
+  iframe{
+    width:100%; height:var(--map-h);
+    border:0; border-radius:14px;
+  }
+
+  /* Estações Virtuais (inline) */
+  #map-virt{ width:100%; height:var(--map-h); border-radius:14px; overflow:hidden; }
+  .virt-note{ margin:6px 0 10px 0; font-size:13px; line-height:1.35; text-align:center; color:#5b7280; }
+  .leaflet-control-layers{ font-size:13px; }
+  .leaflet-popup-content{ font-family: system-ui, Segoe UI, Arial, sans-serif; }
+
+  section[id^="sec-"]{ scroll-margin-top: 88px; }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<div class="container-fluid px-0">
+  <nav class="condicoes-switch">
+    <div class="toolbar">
+      <a href="#sec-mapa" class="btn-option">Temperatura</a>
+      <a href="#sec-ar"   class="btn-option">Qualidade do Ar</a>
+      <a href="#sec-virt" class="btn-option">Estações Virtuais</a>
+    </div>
+  </nav>
+
+  <section id="sec-mapa" class="labinstru-wrap">
+    <h3>Temperatura Real</h3>
+    <iframe src="{{ mapa_temp_iframe }}" height="{{ map_height }}" loading="lazy" style="height:var(--map-h)"></iframe>
+  </section>
+
+  <section id="sec-ar" class="labinstru-wrap">
+    <h3>Qualidade do Ar (PM2.5)</h3>
+    <iframe src="{{ mapa_ar_iframe }}" height="{{ map_height }}" loading="lazy" style="height:var(--map-h)"></iframe>
+  </section>
+
+  <section id="sec-virt" class="labinstru-wrap">
+    <h3>Estações Virtuais</h3>
+    <p class="virt-note">
+      Use o controle no canto superior esquerdo para ligar/desligar
+      <b>Temperatura (°C)</b>, <b>Temperatura da Superfície (°C)</b>, <b>Umidade Relativa (%)</b> e <b>Chuva (mm/h)</b>.
+    </p>
+    <div id="map-virt"></div>
+  </section>
+</div>
+
+<script>
+/* Realça o botão da seção visível e atualiza o hash */
+(function(){
+  const btns = Array.from(document.querySelectorAll('.btn-option'));
+  const map  = { '#sec-mapa': btns[0], '#sec-ar': btns[1], '#sec-virt': btns[2] };
+  function setActive(id){ btns.forEach(b=>b.classList.remove('active')); if(map[id]) map[id].classList.add('active'); }
+  const obs = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ const id='#'+e.target.id; setActive(id); history.replaceState?.(null,'',id); } });
+  }, { rootMargin:'-60% 0px -35% 0px', threshold:0 });
+  document.querySelectorAll('section[id^="sec-"]').forEach(s=>obs.observe(s));
+  setActive(location.hash || '#sec-mapa');
+})();
+
+/* ================== ESTAÇÕES VIRTUAIS (inline) ================== */
+(function(){
+  const TIMEZONE = "America/Manaus";
+  const PRIMARY_MODEL = "ecmwf_ifs";
+  const FRESH_TTL_SEC = 600; // 10 min
+  const MUNICIPIOS = [
+    {nome:"Manaus",lat:-3.117034,lon:-60.025780},
+    {nome:"Manacapuru",lat:-3.299677,lon:-60.621353},
+    {nome:"Iranduba",lat:-3.279088,lon:-60.189230},
+    {nome:"Presidente Figueiredo",lat:-2.048636,lon:-60.023666},
+    {nome:"Rio Preto da Eva",lat:-2.698890,lon:-59.700000},
+    {nome:"Itacoatiara",lat:-3.138610,lon:-58.444960},
+    {nome:"Novo Airão",lat:-2.620830,lon:-60.943890},
+    {nome:"Careiro da Várzea",lat:-3.199000,lon:-59.822000},
+    {nome:"Autazes",lat:-3.579720,lon:-59.130830},
+    {nome:"Careiro",lat:-3.768700,lon:-60.368200},
+    {nome:"Itapiranga",lat:-2.740830,lon:-58.029440},
+    {nome:"Manaquiri",lat:-3.441670,lon:-60.461940},
+    {nome:"Silves",lat:-2.840830,lon:-58.209440},
+  ];
+
+  /* === escalas === (gradiente contínuo) */
+  const TEMP_STOPS = [[20,"#90caf9"],[24,"#64b5f6"],[28,"#4fc3f7"],[30,"#81c784"],[32,"#fff176"],[34,"#ffb74d"],[36,"#ff8a65"],[38,"#ef5350"],[40,"#d32f2f"]];
+  const RH_STOPS   = [[30,"#bbdefb"],[50,"#90caf9"],[65,"#64b5f6"],[80,"#42a5f5"],[95,"#1e88e5"]];
+  const PR_STOPS   = [[0.0,"#e3f2fd"],[0.2,"#bbdefb"],[1.0,"#90caf9"],[2.0,"#64b5f6"],[5.0,"#42a5f5"],[10.0,"#1e88e5"]];
+
+  /* === util: cores com interpolação linear (igual à legenda) === */
+  const hexToRgb=(h)=>{h=h.replace("#",""); if(h.length===3) h=[...h].map(x=>x+x).join(""); return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};}
+  const rgbToHex=(r,g,b)=>"#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  function colorScale(stops, v, defColor){
+    if(v==null || Number.isNaN(v)) return defColor || "#cccccc";
+    const n=stops.length;
+    if(v<=stops[0][0]) return stops[0][1];
+    if(v>=stops[n-1][0]) return stops[n-1][1];
+    for(let i=1;i<n;i++){
+      const [v1,c1]=stops[i-1], [v2,c2]=stops[i];
+      if(v<=v2){
+        const t=(v-v1)/(v2-v1);
+        const a=hexToRgb(c1), b=hexToRgb(c2);
+        return rgbToHex(lerp(a.r,b.r,t), lerp(a.g,b.g,t), lerp(a.b,b.b,t));
+      }
+    }
+    return stops[n-1][1];
+  }
+  const bestText=(bg)=>{const {r,g,b}=hexToRgb(bg||"#ccc"); return ((r*299+g*587+b*114)/1000)>=150?"#111":"#fff";}
+  const badgeHTML=(txt,bg)=>`<div style="display:flex;align-items:center;justify-content:center;width:58px;height:58px;border-radius:50%;background:${bg};border:2px solid rgba(0,0,0,.35);font-weight:800;font-size:18px;color:${bestText(bg)};text-shadow:0 1px 2px rgba(0,0,0,.35);box-shadow:0 2px 10px rgba(0,0,0,.25)">${txt}</div>`;
+  const fmt=(iso)=>{try{return new Date(iso).toLocaleString("pt-BR",{timeZone:TIMEZONE});}catch(_){return "—";}}
+
+  /* === cache localStorage === */
+  const CACHE_KEY="virt_cache_v4";
+  const loadCache=()=>{try{const raw=localStorage.getItem(CACHE_KEY); if(!raw) return null; const o=JSON.parse(raw); if(!o||!o.ts) return null; if((Date.now()-o.ts)/1000>FRESH_TTL_SEC) return null; return o.data;}catch(_){return null;}}
+  const saveCache=(data)=>{try{localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(), data}));}catch(_){}}  
+
+  /* === fetch Open-Meteo === */
+  async function fetchOM(lat,lon, model){
+    const base="https://api.open-meteo.com/v1/forecast";
+    const params=new URLSearchParams({
+      latitude:String(lat), longitude:String(lon),
+      current:"temperature_2m,relative_humidity_2m,precipitation,soil_temperature_0cm",
+      hourly:"temperature_2m,relative_humidity_2m,precipitation,soil_temperature_0cm",
+      daily:"temperature_2m_max,temperature_2m_min,precipitation_sum",
+      past_hours:"2", forecast_hours:"0", forecast_days:"1", timezone:TIMEZONE
+    });
+    if(model) params.set("models", model);
+    const r=await fetch(`${base}?${params.toString()}`);
+    if(!r.ok) throw new Error("Open-Meteo HTTP "+r.status);
+    return await r.json();
+  }
+
+  function pickLatest(json, key){
+    const curVal=json.current?.[key] ?? null;
+    const curIso=json.current?.time ?? null;
+    const nowRef = curIso ? new Date(curIso) : new Date();
+    let bestVal=curVal, bestIso=curIso, org="current";
+    const times=json.hourly?.time, arr=json.hourly?.[key];
+    if(times && arr && times.length===arr.length && times.length>0){
+      let idx=arr.length-1;
+      for(let i=arr.length-1;i>=0;i--){ if(new Date(times[i])<=nowRef){ idx=i; break; } }
+      const hv=arr[idx], iso=times[idx];
+      if(hv!=null && !Number.isNaN(hv) && (!bestIso || new Date(iso)>new Date(bestIso))){ bestVal=hv; bestIso=iso; org="hourly"; }
+    }
+    return [bestVal, bestIso, org];
+  }
+
+  function extract(city, json){
+    if(!json) return null;
+    const [tVal,tIso,tOrg]=pickLatest(json,"temperature_2m");
+    const [sVal,sIso,sOrg]=pickLatest(json,"soil_temperature_0cm"); // <<< superfície (0 cm)
+    const [rVal,rIso,rOrg]=pickLatest(json,"relative_humidity_2m");
+    const [pVal,pIso,pOrg]=pickLatest(json,"precipitation");
+    const tmax=json.daily?.temperature_2m_max?.[0] ?? null;
+    const tmin=json.daily?.temperature_2m_min?.[0] ?? null;
+    const psum=json.daily?.precipitation_sum?.[0] ?? null;
+    const anyIso=tIso||sIso||rIso||pIso||null;
+    return {nome:city.nome, lat:city.lat, lon:city.lon,
+            temp:{val:tVal,iso:tIso,org:tOrg},
+            surf:{val:sVal,iso:sIso,org:sOrg},
+            rh:{val:rVal,iso:rIso,org:rOrg},
+            pr:{val:pVal,iso:pIso,org:pOrg},
+            daily:{tmax,tmin,psum}, updated_any:anyIso};
+  }
+
+  async function getDataAll(){
+    const cached=loadCache(); if(cached) return cached;
+
+    // 1) tenta modelo fixo
+    const prim = await Promise.allSettled(MUNICIPIOS.map(c=>fetchOM(c.lat,c.lon,PRIMARY_MODEL)));
+    // 2) extrai e refaz quem ficou sem QUALQUER valor (fallback)
+    const extracted = await Promise.all(MUNICIPIOS.map(async (c, i)=>{
+      let obj = prim[i].status==="fulfilled" ? extract(c, prim[i].value) : null;
+      const needsFallback = !obj || (
+        (obj.temp.val==null || Number.isNaN(obj.temp.val)) &&
+        (obj.surf.val==null || Number.isNaN(obj.surf.val)) &&
+        (obj.rh.val==null   || Number.isNaN(obj.rh.val))   &&
+        (obj.pr.val==null   || Number.isNaN(obj.pr.val))
+      );
+      if(needsFallback){
+        try{
+          const alt = await fetchOM(c.lat,c.lon,null); // best-match
+          obj = extract(c, alt) || obj;
+        }catch(_){}
+      }
+      return obj || {nome:c.nome, lat:c.lat, lon:c.lon};
+    }));
+
+    saveCache(extracted);
+    return extracted;
+  }
+
+  /* === monta o mapa === */
+  const map = L.map('map-virt', { zoomControl:true, attributionControl:true }).setView([-3.11,-60.02], 8);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom:19, attribution:'&copy; OpenStreetMap &copy; CARTO' }).addTo(map);
+
+  // grupos: T (on), Superfície (off), UR (off), Chuva (off)
+  const fgTemp=L.layerGroup().addTo(map),
+        fgSurf=L.layerGroup(),
+        fgRH=L.layerGroup(),
+        fgPR=L.layerGroup();
+
+  const popupHTML=(d)=>{
+    const f=(x,suf="")=> (x==null||Number.isNaN(x)) ? "—" : `${(suf===" %"?Math.round(x):Number(x).toFixed(1))}${suf}`;
+    return `<div style="min-width:240px">
+      <h4 style="margin:0 0 .4rem 0;font-size:16px">${d.nome}</h4>
+      <div style="font-size:14px;line-height:1.45">
+        <div><b>Agora</b> — T: ${f(d.temp?.val," °C")} <span style="color:#666">(${d.temp?.org||"—"})</span></div>
+        <div>      Superfície: ${f(d.surf?.val," °C")} <span style="color:#666">(${d.surf?.org||"—"})</span></div>
+        <div>           UR: ${f(d.rh?.val," %")} <span style="color:#666">(${d.rh?.org||"—"})</span></div>
+        <div>         Chuva: ${f(d.pr?.val," mm/h")} <span style="color:#666">(${d.pr?.org||"—"})</span></div>
+        <div style="margin-top:.2rem"><b>Hoje</b> — Máx: ${f(d.daily?.tmax," °C")} • Mín: ${f(d.daily?.tmin," °C")} • Chuva: ${f(d.daily?.psum," mm")}</div>
+        <hr style="margin:.5rem 0;border:none;border-top:1px solid #ddd">
+        <div><b>Latitude:</b> ${d.lat.toFixed(5)} • <b>Longitude:</b> ${d.lon.toFixed(5)}</div>
+        <div><b>Última atualização (local):</b> ${d.updated_any ? new Date(d.updated_any).toLocaleString("pt-BR",{timeZone:TIMEZONE}) : "—"}</div>
+        <div style="margin-top:.25rem;font-size:12px;color:#555">
+          <b>Fonte:</b> Open-Meteo (${PRIMARY_MODEL} com fallback) • Parâmetros: <code>temperature_2m, soil_temperature_0cm, relative_humidity_2m, precipitation</code>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  function addCity(d){
+    const t=d.temp?.val,  ct=colorScale(TEMP_STOPS,t,"#ccc");
+    const s=d.surf?.val,  cs=colorScale(TEMP_STOPS,s,"#ccc"); // mesma escala da temperatura do ar
+    const r=d.rh?.val,    cr=colorScale(RH_STOPS,r,"#90caf9");
+    const p=d.pr?.val,    cp=colorScale(PR_STOPS,p,"#e3f2fd");
+
+    const badgeT=`${badgeHTML(t==null?"—":`${Number(t).toFixed(1)}°`, ct)}`;
+    const badgeS=`${badgeHTML(s==null?"—":`${Number(s).toFixed(1)}°`, cs)}`;
+    const badgeR=`${badgeHTML(r==null?"—":`${Math.round(r)}%`,    cr)}`;
+    const badgeP=`${badgeHTML(p==null?"—":`${Number(p).toFixed(1)}`, cp)}`;
+
+    const pop = {maxWidth:360};
+
+    // T
+    L.circleMarker([d.lat,d.lon], {radius:18,color:"#333",weight:1,fill:true,fillColor:ct,fillOpacity:.55}).bindPopup(popupHTML(d), pop).addTo(fgTemp);
+    L.marker([d.lat,d.lon], {icon:L.divIcon({html:badgeT,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d), pop).addTo(fgTemp);
+    // Superfície
+    L.circleMarker([d.lat,d.lon], {radius:18,color:"#333",weight:1,fill:true,fillColor:cs,fillOpacity:.55}).bindPopup(popupHTML(d), pop).addTo(fgSurf);
+    L.marker([d.lat,d.lon], {icon:L.divIcon({html:badgeS,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d), pop).addTo(fgSurf);
+    // UR
+    L.circleMarker([d.lat,d.lon], {radius:18,color:"#333",weight:1,fill:true,fillColor:cr,fillOpacity:.55}).bindPopup(popupHTML(d), pop).addTo(fgRH);
+    L.marker([d.lat,d.lon], {icon:L.divIcon({html:badgeR,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d), pop).addTo(fgRH);
+    // Chuva
+    L.circleMarker([d.lat,d.lon], {radius:18,color:"#333",weight:1,fill:true,fillColor:cp,fillOpacity:.55}).bindPopup(popupHTML(d), pop).addTo(fgPR);
+    L.marker([d.lat,d.lon], {icon:L.divIcon({html:badgeP,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d), pop).addTo(fgPR);
+  }
+
+  // legenda com linear-gradient
+  function gradBar(stops){
+    const min=stops[0][0], max=stops[stops.length-1][0];
+    const parts=stops.map(([v,c])=>`${c} ${((v-min)/(max-min)*100).toFixed(2)}%`).join(', ');
+    return `<div style="height:8px;border-radius:6px;overflow:hidden;background:linear-gradient(to right, ${parts});"></div>`;
+  }
+  function addLegend(){
+    const box=L.control({position:'bottomleft'});
+    box.onAdd=()=>{ const div=L.DomUtil.create('div'); div.style.cssText="background:rgba(255,255,255,.96);padding:10px 12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:360px";
+      div.innerHTML=`
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Escalas</div>
+        <div style="font-size:12px;margin-bottom:6px">
+          <div><b>Temperatura (°C) &amp; Superfície (°C)</b></div>
+          ${gradBar(TEMP_STOPS)}
+          <div style="margin-top:3px">${TEMP_STOPS.filter((_,i)=>i%2===0).map(s=>`${s[0]}°`).join(' &nbsp; ')}</div>
+        </div>
+        <div style="font-size:12px;margin-bottom:6px">
+          <div><b>Umidade Relativa (%)</b></div>
+          ${gradBar(RH_STOPS)}
+          <div style="margin-top:3px">${RH_STOPS.map(s=>`${s[0]}%`).join(' &nbsp; ')}</div>
+        </div>
+        <div style="font-size:12px">
+          <div><b>Chuva (mm/h)</b></div>
+          ${gradBar(PR_STOPS)}
+          <div style="margin-top:3px">${PR_STOPS.map(s=>`${s[0]}`).join(' &nbsp; ')}</div>
+        </div>`;
+      return div; };
+    box.addTo(map);
+  }
+
+  function addSourceBox(lastIso){
+    const info=L.control({position:'topright'});
+    info.onAdd=()=>{ const div=L.DomUtil.create('div'); div.style.cssText="background:rgba(255,255,255,.95);padding:10px 12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:380px;font-size:13px;line-height:1.35";
+      div.innerHTML=`<div><b>Fonte:</b> Open-Meteo (modelo fixo: ${PRIMARY_MODEL} com fallback)</div><div><b>Última atualização global (local):</b> ${lastIso?fmt(lastIso):"—"}</div><div style="color:#555">Fuso: America/Manaus</div>`;
+      return div; };
+    info.addTo(map);
+  }
+
+  (async function init(){
+    try{
+      const data = await getDataAll();
+      const bounds=[]; let last=null;
+
+      data.forEach(d=>{
+        if(!d) return;
+        addCity(d);
+        bounds.push([d.lat,d.lon]);
+        const cand=d.updated_any?new Date(d.updated_any):null;
+        if(cand && (!last || cand>last)) last=cand;
+      });
+      if(bounds.length>0) map.fitBounds(bounds,{padding:[10,10]});
+
+      L.control.layers(null,{
+        "Temperatura (°C)":fgTemp,
+        "Temperatura da Superfície (°C)":fgSurf,
+        "Umidade Relativa (%)":fgRH,
+        "Chuva (mm/h)":fgPR
+      },{collapsed:false,position:"topleft"}).addTo(map);
+
+      addLegend();
+      addSourceBox(last ? last.toISOString() : null);
+    }catch(err){
+      console.error("Falha ao montar Estações Virtuais:", err);
+      const el=document.createElement('div');
+      el.style.cssText="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb";
+      el.innerHTML="<b>Não foi possível carregar as Estações Virtuais.</b><br>Verifique sua conexão com a internet.";
+      document.getElementById('map-virt').replaceWith(el);
+    }
+  })();
+})();
+</script>
+
+{% endblock content %}

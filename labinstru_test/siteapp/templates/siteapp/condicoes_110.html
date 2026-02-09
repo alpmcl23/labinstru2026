@@ -1,0 +1,189 @@
+{% extends 'siteapp/base.html' %}
+{% load static %}
+{% block title %}Condições atuais da atmosfera – LabInstru{% endblock %}
+{% block content %}
+
+<style>
+  :root{
+    --selva-green:#0b3d2e;
+    --selva-green-700:#093426;
+    --map-h: {{ map_height|default:'640' }}px;
+    /* valor inicial; será atualizado por JS conforme altura real da barra */
+    --scroll-offset: 96px;
+  }
+  html { scroll-behavior:smooth; }
+
+  /* ===== Barra de abas ===== */
+  .condicoes-switch{
+    position:sticky; top:0; z-index:1020;
+    background:var(--selva-green);
+    border-radius:0;
+    box-shadow:0 6px 16px #001a2a66;
+  }
+  .condicoes-switch .toolbar{
+    max-width:1400px; margin:0 auto; padding:10px 14px;
+    display:flex; gap:14px; flex-wrap:wrap; align-items:center;
+  }
+  .condicoes-switch .btn-option{
+    display:inline-flex; align-items:center; justify-content:center;
+    height:42px; padding:8px 18px; border-radius:999px;
+    font-weight:700; text-decoration:none; letter-spacing:.2px;
+    background:transparent; color:#fff;
+    border:2px solid rgba(255,255,255,.95);
+    transition:transform .12s ease, box-shadow .15s ease, background .15s ease, color .15s ease;
+  }
+  .condicoes-switch .btn-option:hover{ transform:translateY(-1px); }
+  .condicoes-switch .btn-option.active{
+    background:#fff; color:var(--selva-green);
+    border-color:#fff;
+    box-shadow:0 3px 10px rgba(0,0,0,.18);
+  }
+
+  /* ===== Layout ===== */
+  .labinstru-wrap{ padding:0; margin:0 0 18px 0; }
+  .labinstru-wrap h3{ display:none; }
+  iframe{ width:100%; height:var(--map-h); border:0; border-radius:14px; }
+
+  /* Leaflet */
+  #map-virt{ width:100%; height:var(--map-h); border-radius:14px; overflow:hidden; }
+  .leaflet-control-container .lab-legend,
+  .leaflet-control-container .lab-source {
+    background:rgba(255,255,255,.96);
+    padding:10px 12px;
+    border-radius:12px;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+    font-family:system-ui,Segoe UI,Arial,sans-serif;
+  }
+
+  /* Compensar cabeçalho fixo em navegação por hash (sincronizado via JS) */
+  section[id^="sec-"]{ scroll-margin-top: var(--scroll-offset); }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<div class="container-fluid px-0">
+  <nav class="condicoes-switch">
+    <div class="toolbar">
+      <a href="#sec-mapa"  class="btn-option active" aria-current="page">Temperatura do Ar</a>
+      <a href="#sec-ar"    class="btn-option">Qualidade do Ar</a>
+      <a href="#sec-virt"  class="btn-option">Estações Virtuais</a>
+      <a href="#sec-video" class="btn-option">Câmera ao vivo</a>
+    </div>
+  </nav>
+
+  <section id="sec-mapa" class="labinstru-wrap">
+    <h3>Temperatura Real</h3>
+    <iframe src="{{ mapa_temp_iframe|default:'/embed/maps/mapa_temp_real.html' }}"
+            height="{{ map_height|default:'640' }}" loading="lazy"
+            style="height:var(--map-h)"></iframe>
+  </section>
+
+  <section id="sec-ar" class="labinstru-wrap">
+    <h3>Qualidade do Ar</h3>
+    <iframe src="{{ mapa_ar_iframe|default:'/embed/maps/mapa_pm25.html' }}"
+            height="{{ map_height|default:'640' }}" loading="lazy"
+            style="height:var(--map-h)"></iframe>
+  </section>
+
+  <section id="sec-virt" class="labinstru-wrap">
+    <div id="map-virt">
+      <noscript><div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb">
+        Ative o JavaScript para ver o mapa.
+      </div></noscript>
+    </div>
+  </section>
+
+  <!-- ===== ABA 4: Câmera ao vivo ===== -->
+  <section id="sec-video" class="labinstru-wrap">
+    <h3>Câmera ao vivo</h3>
+    {% with chan_id="UC4sHhcVW9dmW4QtV8MZPuUg" %}
+    <iframe
+      src="https://www.youtube.com/embed/live_stream?channel={{ youtube_channel_id|default:chan_id }}&autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1"
+      title="YouTube Live – Adriano Lima Pedrosa" loading="lazy"
+      allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
+      referrerpolicy="strict-origin-when-cross-origin" allowfullscreen
+      height="{{ map_height|default:'640' }}" style="height:var(--map-h)">
+    </iframe>
+    <div class="text-center" style="margin-top:8px">
+      <a href="https://youtube.com/@AdrianoLimaPedrosa/live" target="_blank" rel="noopener">
+        Abrir no YouTube (link fixo do canal)
+      </a>
+    </div>
+    {% endwith %}
+  </section>
+</div>
+
+<!-- ===== ScrollSpy corrigido ===== -->
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+(function(){
+  const nav  = document.querySelector('.condicoes-switch');
+  const btns = [...document.querySelectorAll('.btn-option')];
+  const secs = [...document.querySelectorAll('section[id^="sec-"]')];
+  const btnByHash = Object.fromEntries(btns.map(b => [b.getAttribute('href'), b]));
+  let scrollOffset = 0;
+
+  function syncOffsets(){
+    const navH = Math.ceil(nav?.getBoundingClientRect().height || 0);
+    scrollOffset = navH + 14; // folga para sombra da barra
+    document.documentElement.style.setProperty('--scroll-offset', scrollOffset + 'px');
+    secs.forEach(s => s.style.scrollMarginTop = scrollOffset + 'px');
+  }
+
+  function setActive(hash){
+    btns.forEach(b => { b.classList.remove('active'); b.removeAttribute('aria-current'); });
+    const el = btnByHash[hash] || btns[0];
+    el.classList.add('active');
+    el.setAttribute('aria-current','page');
+  }
+
+  function currentSection(){
+    const y = scrollOffset + 1; // usa o MESMO offset do scroll-margin-top
+    let cur = secs[0]?.id || '';
+    for(const s of secs){
+      const r = s.getBoundingClientRect();
+      if(r.top <= y && r.bottom > y){ cur = s.id; break; }
+      if(r.top <= y) cur = s.id;
+    }
+    return cur;
+  }
+
+  function onScroll(){
+    const hash = '#'+currentSection();
+    setActive(hash);
+    if(hash !== location.hash) history.replaceState(null,'',hash);
+  }
+
+  // Clique: já marca a aba e depois confirma após o smooth-scroll
+  btns.forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const h = b.getAttribute('href');
+      setActive(h);
+      setTimeout(onScroll, 320); // deixa o smooth scroll assentar
+    });
+  });
+
+  // Inicialização
+  function init(){
+    syncOffsets();
+    // Se entrar já com hash, respeita; senão calcula pela posição atual
+    if(location.hash && btnByHash[location.hash]) setActive(location.hash);
+    onScroll();
+  }
+
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', ()=>{ syncOffsets(); onScroll(); });
+  window.addEventListener('hashchange', onScroll);
+
+  (document.readyState==='loading'
+    ? document.addEventListener('DOMContentLoaded', init)
+    : init());
+})();
+</script>
+
+<!-- ===== Estações Virtuais (Leaflet + Open-Meteo) ===== -->
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+/* seu script das Estações Virtuais permanece igual aqui */
+</script>
+
+{% endblock content %}

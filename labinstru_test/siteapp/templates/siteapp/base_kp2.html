@@ -1,0 +1,226 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}LabInstru{% endblock %}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Bootstrap + Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    /* === Paleta (tons do verde do SELVA) === */
+    :root{
+      --selva-green: #0b3d2e;      /* primário */
+      --selva-green-700:#093426;   /* mais escuro */
+      --selva-green-600:#0e4a38;   /* variação */
+      --selva-accent:#32b68a;      /* acento */
+      --selva-text:#f3faf7;        /* texto claro */
+      --selva-text-dim:#cfe5dd;    /* texto secundário */
+    }
+
+    body { background-color:#f8fafc; }
+
+    /* ===== Sidebar verde ===== */
+    .sidebar{
+      min-height:100vh;
+      background: linear-gradient(180deg, var(--selva-green) 0%, var(--selva-green-700) 100%);
+      padding:20px;
+      color:var(--selva-text);
+      border-right:0;
+    }
+    .sidebar .brand img { height:42px; border-radius:8px; }
+    .sidebar h6 { color:var(--selva-text-dim); letter-spacing:.02em; }
+
+    .sidebar .nav-link{
+      display:flex; align-items:center; gap:.55rem;
+      font-weight:600;
+      color:var(--selva-text);
+      padding:.55rem .75rem;
+      border-radius:.6rem;
+      background:transparent !important;
+      transition:background .15s ease, color .15s ease, transform .05s ease;
+    }
+    .sidebar .nav-link i{ opacity:.9; }
+    .sidebar .nav-link:hover{
+      color:#fff;
+      background:rgba(255,255,255,.10) !important;
+      text-decoration:none;
+      transform:translateX(2px);
+    }
+    .sidebar .nav-link.active{
+      color:#fff !important;
+      background:rgba(255,255,255,.18) !important;
+      box-shadow:inset 3px 0 0 0 var(--selva-accent);
+    }
+
+    .content { padding:30px; }
+
+    /* Mobile */
+    @media (max-width: 767.98px) { .sidebar { min-height:auto; } }
+
+    /* === Botão hamburguer no mobile (contraste no verde) === */
+    .sidebar .btn.btn-outline-secondary{
+      --bs-btn-color: var(--selva-text);
+      --bs-btn-border-color: rgba(255,255,255,.35);
+      --bs-btn-hover-bg: rgba(255,255,255,.16);
+      --bs-btn-hover-border-color: rgba(255,255,255,.55);
+    }
+
+    /* === ZEUS chat flutuante === */
+    #zeus-btn{
+      position:fixed; right:18px; bottom:18px; z-index:9999; font-weight:700;
+      box-shadow:0 6px 16px rgba(0,0,0,.15);
+      background:var(--selva-green-600); border-color:var(--selva-green-600);
+    }
+    #zeus-btn:hover{ background:var(--selva-green-700); border-color:var(--selva-green-700); }
+
+    #zeus-panel{
+      position:fixed; right:18px; bottom:76px; z-index:9999;
+      width:360px; max-width:95vw; display:none; flex-direction:column;
+      background:#f6f8fb; border:1.7px solid #d0e1f3; border-radius:12px; box-shadow:0 8px 20px #0002;
+    }
+    #zeus-header{
+      background:linear-gradient(90deg,var(--selva-green-600) 80%, #4ad1a8 100%);
+      color:#fff; padding:10px 12px; display:flex; align-items:center; gap:10px; border-radius:12px 12px 0 0;
+    }
+    #zeus-mensagens{ padding:10px; height:280px; overflow-y:auto; }
+    .z-assistant{ background:#e1eefc; padding:8px 12px; border-radius:8px; margin:6px 0; color:#17394a; }
+    .z-user{ background:#d2f5db; padding:8px 12px; border-radius:8px; margin:6px 0; text-align:right; color:#135c1a; }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="container-fluid">
+  <div class="row">
+    {% with current=request.resolver_match.url_name %}
+    <nav class="col-12 col-md-3 col-lg-2 sidebar">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <a class="brand d-flex align-items-center gap-2 text-decoration-none" href="{% url 'home' %}">
+          <!-- (sem logo, só cor) -->
+        </a>
+        <button class="btn btn-outline-secondary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#menuCollapse">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+
+      <h6 class="text-uppercase small mb-2">Menu</h6>
+      <div id="menuCollapse" class="collapse d-md-block">
+        <div class="nav flex-column">
+          <a class="nav-link {% if current == 'home' %}active{% endif %}" href="{% url 'home' %}"><i class="fas fa-home me-1"></i> Pagina inicial</a>
+          <a class="nav-link {% if current == 'quem_somos' %}active{% endif %}" href="{% url 'quem_somos' %}"><i class="fas fa-users me-1"></i> Quem somos</a>
+          <a class="nav-link {% if current == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}"><i class="fas fa-chart-line me-1"></i> Estação da EST</a>
+          <a class="nav-link {% if current == 'rede_hobo' %}active{% endif %}" href="{% url 'rede_hobo' %}"><i class="fas fa-network-wired me-1"></i> Rede de estações HOBO</a>
+          <a class="nav-link {% if current == 'condicoes' %}active{% endif %}" href="{% url 'condicoes' %}"><i class="fas fa-clock me-1"></i> O tempo agora</a>
+          <a class="nav-link {% if current == 'satelite_radar' %}active{% endif %}" href="{% url 'satelite_radar' %}"><i class="fas fa-satellite me-1"></i> Satélite e radar</a>
+          <a class="nav-link {% if current == 'estagio' %}active{% endif %}" href="{% url 'estagio' %}"><i class="fas fa-graduation-cap me-1"></i> Estágio Curricular</a>
+          <a class="nav-link {% if current == 'projetos' %}active{% endif %}" href="{% url 'projetos' %}"><i class="fas fa-lightbulb me-1"></i> Projetos</a>
+          <a class="nav-link {% if current == 'eventos' %}active{% endif %}" href="{% url 'eventos' %}"><i class="fas fa-calendar-days me-1"></i> Eventos</a>
+          <a class="nav-link {% if current == 'contato' %}active{% endif %}" href="{% url 'contato' %}"><i class="fas fa-envelope me-1"></i> Contato</a>
+        </div>
+      </div>
+    </nav>
+    {% endwith %}
+
+    <main class="col-12 col-md-9 col-lg-10 content">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<!-- Força existir cookie CSRF -->
+<form style="display:none">{% csrf_token %}</form>
+
+<!-- === ZEUS Widget === -->
+<button id="zeus-btn" class="btn btn-success"><i class="fa-solid fa-bolt me-1"></i> ZEUS</button>
+
+<div id="zeus-panel">
+  <div id="zeus-header">
+    <i class="fa-solid fa-bolt"></i>
+    <strong>ZEUS</strong>
+    <button class="btn btn-sm btn-light ms-auto" type="button" onclick="toggleZeus()">Fechar</button>
+  </div>
+  <div id="zeus-mensagens">
+    <div class="z-assistant">Olá! ⚡ Eu sou <b>ZEUS</b>, seu assistente meteorológico. Pergunte sobre previsão, mapas ou fenômenos climáticos!</div>
+  </div>
+  <div class="p-2 d-flex gap-2">
+    <input id="zeus-input" class="form-control" placeholder="Pergunte sobre meteorologia..." maxlength="350">
+    <button class="btn btn-primary" type="button" onclick="sendZeus()">Enviar</button>
+  </div>
+</div>
+
+<script>
+  function toggleZeus(){
+    const p = document.getElementById('zeus-panel');
+    const open = p.style.display === 'flex';
+    p.style.display = open ? 'none' : 'flex';
+    if(!open){ document.getElementById('zeus-input').focus(); }
+  }
+  document.getElementById('zeus-btn').onclick = toggleZeus;
+
+  function getCookie(name){
+    let cookieValue = null;
+    if(document.cookie && document.cookie !== ''){
+      const cookies = document.cookie.split(';');
+      for(let i=0;i<cookies.length;i++){
+        const cookie = cookies[i].trim();
+        if(cookie.substring(0, name.length + 1) === (name + '=')){
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  async function sendZeus(){
+    const input = document.getElementById('zeus-input');
+    const msg = input.value.trim();
+    if(!msg) return;
+    input.value = '';
+    const box = document.getElementById('zeus-mensagens');
+
+    const userDiv = document.createElement('div');
+    userDiv.className = 'z-user';
+    userDiv.textContent = msg;
+    box.appendChild(userDiv);
+    box.scrollTop = box.scrollHeight;
+
+    let respDiv = document.createElement('div');
+    respDiv.className = 'z-assistant';
+    respDiv.textContent = 'Digitando...';
+    box.appendChild(respDiv);
+    box.scrollTop = box.scrollHeight;
+
+    try{
+      const r = await fetch('{% url "api_zeus" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ pergunta: msg })
+      });
+      const js = await r.json();
+      respDiv.textContent = js.resposta || 'Sem resposta.';
+    }catch(e){
+      respDiv.textContent = '⚠️ Erro ao conectar.';
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // Enviar com Enter
+  document.getElementById('zeus-input').addEventListener('keydown', (ev)=>{
+    if(ev.key === 'Enter' && !ev.shiftKey){
+      ev.preventDefault();
+      sendZeus();
+    }
+  });
+</script>
+
+<!-- Bootstrap bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

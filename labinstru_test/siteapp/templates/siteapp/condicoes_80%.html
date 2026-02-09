@@ -1,0 +1,320 @@
+{% extends 'siteapp/base.html' %}
+{% block title %}Condições atuais da atmosfera – LabInstru{% endblock %}
+{% block content %}
+
+<style>
+  :root{
+    --selva-green:#0b3d2e; --selva-green-700:#093426;
+    --map-h: {{ map_height|default:'640' }}px;
+  }
+  html { scroll-behavior: smooth; }
+
+  .condicoes-switch{
+    position: sticky; top:0; z-index:1020;
+    background: var(--selva-green);
+    border-radius: 0 0 18px 18px;
+    box-shadow:0 6px 16px #001a2a66;
+  }
+  .condicoes-switch .toolbar{
+    max-width: 1400px; margin:0 auto; padding:10px 14px;
+    display:flex; gap:14px; flex-wrap:wrap; align-items:center; justify-content:flex-start;
+  }
+  .condicoes-switch .btn-option{
+    background: transparent; color:#fff; font-weight:700; text-decoration:none;
+    padding:8px 16px; border-radius:999px; border:2px solid rgba(255,255,255,.9);
+    transition:.15s;
+  }
+  .condicoes-switch .btn-option:hover{ transform:translateY(-1px); }
+  .condicoes-switch .btn-option.active{ background:#fff; color:var(--selva-green); border-color:#fff; }
+
+  .labinstru-wrap{ padding:0; margin:0 0 18px 0; }
+  .labinstru-wrap h3{ display:none; }
+
+  iframe{ width:100%; height:var(--map-h); border:0; border-radius:14px; }
+
+  #map-virt{ width:100%; height:var(--map-h); border-radius:14px; overflow:hidden; }
+  .virt-note{ margin:6px 0 10px 0; font-size:13px; line-height:1.35; text-align:center; color:#5b7280; }
+
+  section[id^="sec-"]{ scroll-margin-top: 88px; }
+</style>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<div class="container-fluid px-0">
+  <nav class="condicoes-switch">
+    <div class="toolbar">
+      <a href="#sec-mapa" class="btn-option">Temperatura</a>
+      <a href="#sec-ar"   class="btn-option">Qualidade do Ar</a>
+      <a href="#sec-virt" class="btn-option">Estações Virtuais</a>
+    </div>
+  </nav>
+
+  <section id="sec-mapa" class="labinstru-wrap">
+    <h3>Temperatura Real</h3>
+    <iframe src="{{ mapa_temp_iframe|default:'/embed/maps/mapa_temp_real.html' }}"
+            height="{{ map_height|default:'640' }}" loading="lazy"
+            style="height:var(--map-h)"></iframe>
+  </section>
+
+  <section id="sec-ar" class="labinstru-wrap">
+    <h3>Qualidade do Ar</h3>
+    <iframe src="{{ mapa_ar_iframe|default:'/embed/maps/mapa_pm25.html' }}"
+            height="{{ map_height|default:'640' }}" loading="lazy"
+            style="height:var(--map-h)"></iframe>
+  </section>
+
+  <section id="sec-virt" class="labinstru-wrap">
+    <h3>Estações Virtuais</h3>
+    <p class="virt-note">
+      Ative/desative no controle (canto superior esquerdo) as camadas:
+      <b>Temperatura do ar (°C)</b>, <b>Sensação térmica (°C)</b>,
+      <b>Nuvens (%)</b> e <b>UV (índice)</b>.
+    </p>
+    <div id="map-virt">
+      <noscript><div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb">Ative o JavaScript para ver o mapa.</div></noscript>
+    </div>
+  </section>
+</div>
+
+<!-- ===== SCRIPTS (com nonce para CSP) ===== -->
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+/* Navegação ativa */
+(function(){
+  const btns=[...document.querySelectorAll('.btn-option')];
+  const byId={'#sec-mapa':btns[0],'#sec-ar':btns[1],'#sec-virt':btns[2]};
+  const setActive=id=>{ btns.forEach(b=>b.classList.remove('active')); byId[id]?.classList.add('active'); };
+  const io=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){ const id='#'+e.target.id; setActive(id); history.replaceState?.(null,'',id); }
+  }),{rootMargin:'-60% 0 -35% 0'});
+  document.querySelectorAll('section[id^="sec-"]').forEach(s=>io.observe(s));
+  setActive(location.hash||'#sec-mapa');
+})();
+</script>
+
+<script nonce="{% firstof request.csp_nonce csp_nonce '' %}">
+/* ================== ESTAÇÕES VIRTUAIS ================== */
+(function(){
+  const TIMEZONE="America/Manaus";
+  const PRIMARY_MODEL="ecmwf_ifs";
+  const FRESH_TTL_SEC=600;
+
+  const MUNICIPIOS=[
+    {nome:"Manaus",lat:-3.117034,lon:-60.025780},
+    {nome:"Manacapuru",lat:-3.299677,lon:-60.621353},
+    {nome:"Iranduba",lat:-3.279088,lon:-60.189230},
+    {nome:"Presidente Figueiredo",lat:-2.048636,lon:-60.023666},
+    {nome:"Rio Preto da Eva",lat:-2.698890,lon:-59.700000},
+    {nome:"Itacoatiara",lat:-3.138610,lon:-58.444960},
+    {nome:"Novo Airão",lat:-2.620830,lon:-60.943890},
+    {nome:"Careiro da Várzea",lat:-3.199000,lon:-59.822000},
+    {nome:"Autazes",lat:-3.579720,lon:-59.130830},
+    {nome:"Careiro",lat:-3.768700,lon:-60.368200},
+    {nome:"Itapiranga",lat:-2.740830,lon:-58.029440},
+    {nome:"Manaquiri",lat:-3.441670,lon:-60.461940},
+    {nome:"Silves",lat:-2.840830,lon:-58.209440},
+  ];
+
+  /* escalas */
+  const TEMP_STOPS=[[20,"#90caf9"],[24,"#64b5f6"],[28,"#4fc3f7"],[30,"#81c784"],[32,"#fff176"],[34,"#ffb74d"],[36,"#ff8a65"],[38,"#ef5350"],[40,"#d32f2f"]];
+  const APP_STOPS=TEMP_STOPS.slice();
+  const CLD_STOPS=[[0,"#f8fbff"],[20,"#e2ebf7"],[40,"#cbd8ea"],[60,"#b3c6de"],[80,"#9cb3d2"],[100,"#869fc5"]];
+  const UV_STOPS=[[0,"#2ecc71"],[3,"#f1c40f"],[6,"#e67e22"],[8,"#e74c3c"],[11,"#8e44ad"]];
+
+  /* util cor */
+  const hexToRgb=h=>{h=String(h||"#ccc").replace("#",""); if(h.length===3) h=[...h].map(x=>x+x).join(""); return {r:parseInt(h.slice(0,2),16),g:parseInt(h.slice(2,4),16),b:parseInt(h.slice(4,6),16)};}
+  const rgbToHex=(r,g,b)=>"#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("");
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  function colorScale(stops, v, def="#ccc"){
+    if(v==null||Number.isNaN(v)) return def;
+    const n=stops.length;
+    if(v<=stops[0][0]) return stops[0][1];
+    if(v>=stops[n-1][0]) return stops[n-1][1];
+    for(let i=1;i<n;i++){
+      const [v1,c1]=stops[i-1], [v2,c2]=stops[i];
+      if(v<=v2){
+        const t=(v-v1)/(v2-v1);
+        const a=hexToRgb(c1), b=hexToRgb(c2);
+        return rgbToHex(lerp(a.r,b.r,t), lerp(a.g,b.g,t), lerp(a.b,b.b,t));
+      }
+    }
+    return stops[n-1][1];
+  }
+  const bestText=bg=>{const {r,g,b}=hexToRgb(bg||"#ccc"); return ((r*299+g*587+b*114)/1000)>=150?"#111":"#fff";}
+  const badgeHTML=(txt,bg)=>`<div style="display:flex;align-items:center;justify-content:center;width:58px;height:58px;border-radius:50%;background:${bg};border:2px solid rgba(0,0,0,.35);font-weight:800;font-size:18px;color:${bestText(bg)};text-shadow:0 1px 2px rgba(0,0,0,.35);box-shadow:0 2px 10px rgba(0,0,0,.25)">${txt}</div>`;
+  const fmt=(iso)=>{try{return new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Manaus"});}catch(_){return "—";}}
+
+  /* cache */
+  const CK="virt_temp_app_cld_uv_v1";
+  const loadCache=()=>{try{const raw=localStorage.getItem(CK); if(!raw) return null; const o=JSON.parse(raw); if(!o||!o.ts) return null; if((Date.now()-o.ts)/1000>FRESH_TTL_SEC) return null; return o.data;}catch(_){return null;}}
+  const saveCache=(data)=>{try{localStorage.setItem(CK, JSON.stringify({ts:Date.now(), data}));}catch(_){}}  
+
+  /* Open-Meteo */
+  async function fetchOM(lat,lon,model){
+    const base="https://api.open-meteo.com/v1/forecast";
+    const params=new URLSearchParams({
+      latitude:String(lat), longitude:String(lon),
+      current:"temperature_2m,apparent_temperature,cloud_cover,uv_index",
+      hourly:"temperature_2m,apparent_temperature,cloud_cover,uv_index",
+      past_hours:"2", forecast_hours:"0", forecast_days:"0", timezone:"America/Manaus"
+    });
+    if(model) params.set("models", model);
+    const r=await fetch(`${base}?${params.toString()}`);
+    if(!r.ok) throw new Error("Open-Meteo HTTP "+r.status);
+    return await r.json();
+  }
+  function pickLatest(json,key){
+    const curVal=json.current?.[key] ?? null;
+    const curIso=json.current?.time ?? null;
+    const nowRef=curIso?new Date(curIso):new Date();
+    let bestVal=curVal, bestIso=curIso, org="current";
+    const times=json.hourly?.time, arr=json.hourly?.[key];
+    if(times && arr && times.length===arr.length && times.length>0){
+      let idx=arr.length-1;
+      for(let i=arr.length-1;i>=0;i--){ if(new Date(times[i])<=nowRef){ idx=i; break; } }
+      const hv=arr[idx], iso=times[idx];
+      if(hv!=null && !Number.isNaN(hv) && (!bestIso || new Date(iso)>new Date(bestIso))){ bestVal=hv; bestIso=iso; org="hourly"; }
+    }
+    return [bestVal,bestIso,org];
+  }
+  function extract(city,json){
+    if(!json) return null;
+    const [tVal,tIso,tOrg]=pickLatest(json,"temperature_2m");
+    const [aVal,aIso,aOrg]=pickLatest(json,"apparent_temperature");
+    const [cVal,cIso,cOrg]=pickLatest(json,"cloud_cover");
+    const [uVal,uIso,uOrg]=pickLatest(json,"uv_index");
+    const anyIso=tIso||aIso||cIso||uIso||null;
+    return {nome:city.nome, lat:city.lat, lon:city.lon,
+      t:{val:tVal,iso:tIso,org:tOrg},
+      app:{val:aVal,iso:aIso,org:aOrg},
+      cld:{val:cVal,iso:cIso,org:cOrg},
+      uv:{val:uVal,iso:uIso,org:uOrg},
+      updated_any:anyIso};
+  }
+  async function getAll(){
+    const cached=loadCache(); if(cached) return cached;
+    const prim=await Promise.allSettled(MUNICIPIOS.map(c=>fetchOM(c.lat,c.lon,PRIMARY_MODEL)));
+    const out=await Promise.all(MUNICIPIOS.map(async (c,i)=>{
+      let obj=prim[i].status==="fulfilled" ? extract(c,prim[i].value) : null;
+      const needsFallback=!obj || (
+        (obj.t?.val==null||Number.isNaN(obj.t?.val)) &&
+        (obj.app?.val==null||Number.isNaN(obj.app?.val)) &&
+        (obj.cld?.val==null||Number.isNaN(obj.cld?.val)) &&
+        (obj.uv ?.val==null||Number.isNaN(obj.uv ?.val))
+      );
+      if(needsFallback){ try{ const alt=await fetchOM(c.lat,c.lon,null); obj=extract(c,alt)||obj; }catch(_){ } }
+      return obj||{nome:c.nome,lat:c.lat,lon:c.lon};
+    }));
+    saveCache(out);
+    return out;
+  }
+
+  const gradBar=(stops)=>{
+    const min=stops[0][0], max=stops[stops.length-1][0];
+    const parts=stops.map(([v,c])=>`${c} ${((v-min)/(max-min)*100).toFixed(2)}%`).join(', ');
+    return `<div style="height:8px;border-radius:6px;overflow:hidden;background:linear-gradient(to right, ${parts});"></div>`;
+  };
+  function addLegend(map){
+    const box=L.control({position:'bottomleft'});
+    box.onAdd=()=>{ const d=L.DomUtil.create('div');
+      d.style.cssText="background:rgba(255,255,255,.96);padding:10px 12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:360px";
+      d.innerHTML=`
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Escalas</div>
+        <div style="font-size:12px;margin-bottom:6px"><div><b>Temperatura do ar (°C)</b></div>${gradBar(TEMP_STOPS)}</div>
+        <div style="font-size:12px;margin-bottom:6px"><div><b>Sensação térmica (°C)</b></div>${gradBar(APP_STOPS)}</div>
+        <div style="font-size:12px;margin-bottom:6px"><div><b>Nuvens (%)</b></div>${gradBar(CLD_STOPS)}</div>
+        <div style="font-size:12px"><div><b>Índice UV</b></div>${gradBar(UV_STOPS)}</div>`;
+      return d;
+    };
+    box.addTo(map);
+  }
+  function addSourceBox(map,lastIso){
+    const info=L.control({position:'topright'});
+    info.onAdd=()=>{ const d=L.DomUtil.create('div');
+      d.style.cssText="background:rgba(255,255,255,.95);padding:10px 12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.25);font-family:system-ui,Segoe UI,Arial,sans-serif;max-width:380px;font-size:13px;line-height:1.35";
+      d.innerHTML=`<div><b>Fonte:</b> Open-Meteo (modelo fixo: ${PRIMARY_MODEL} com fallback)</div>
+                   <div><b>Última atualização (local):</b> ${lastIso?fmt(lastIso):"—"}</div>
+                   <div style="color:#555">Fuso: America/Manaus</div>`;
+      return d;
+    };
+    info.addTo(map);
+  }
+  function popupHTML(d){
+    const f=(x,suf="")=> (x==null||Number.isNaN(x)) ? "—" : `${(suf.includes("%")?Math.round(x):Number(x).toFixed(1))}${suf}`;
+    return `<div style="min-width:240px">
+      <h4 style="margin:0 0 .4rem 0;font-size:16px">${d.nome}</h4>
+      <div style="font-size:14px;line-height:1.45">
+        <div><b>Temperatura do ar:</b> ${f(d.t?.val," °C")} <span style="color:#666">(${d.t?.org||"—"})</span></div>
+        <div><b>Sensação térmica:</b> ${f(d.app?.val," °C")} <span style="color:#666">(${d.app?.org||"—"})</span></div>
+        <div><b>Nuvens:</b> ${f(d.cld?.val," %")} <span style="color:#666">(${d.cld?.org||"—"})</span></div>
+        <div><b>UV:</b> ${d.uv?.val==null?"—":Number(d.uv.val).toFixed(1)} <span style="color:#666">(${d.uv?.org||"—"})</span></div>
+        <hr style="margin:.5rem 0;border:none;border-top:1px solid #ddd">
+        <div><b>Lat:</b> ${d.lat.toFixed(5)} • <b>Lon:</b> ${d.lon.toFixed(5)}</div>
+        <div><b>Atualização (local):</b> ${d.updated_any ? fmt(d.updated_any) : "—"}</div>
+      </div>
+    </div>`;
+  }
+  function addCityLayers(map, d, groups){
+    const {fgT, fgAPP, fgCLD, fgUV}=groups;
+    const mkBadge=(val,stops,fmtFn)=>{ const col=colorScale(stops,val,"#ccc"); const label=(val==null)?"—":fmtFn(val); return {col, html:badgeHTML(label,col)}; };
+    const t  = mkBadge(d.t?.val,   TEMP_STOPS, v=>`${Number(v).toFixed(1)}°`);
+    const app= mkBadge(d.app?.val, APP_STOPS,  v=>`${Number(v).toFixed(1)}°`);
+    const cld= mkBadge(d.cld?.val, CLD_STOPS,  v=>`${Math.round(v)}%`);
+    const uvb= mkBadge(d.uv?.val,  UV_STOPS,   v=>`${Number(v).toFixed(1)}`);
+    const pop={maxWidth:360}, ll=[d.lat,d.lon];
+    L.circleMarker(ll,{radius:18,color:"#333",weight:1,fill:true,fillColor:t.col,fillOpacity:.55}).bindPopup(popupHTML(d),pop).addTo(fgT);
+    L.marker(ll,{icon:L.divIcon({html:t.html,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d),pop).addTo(fgT);
+    L.circleMarker(ll,{radius:18,color:"#333",weight:1,fill:true,fillColor:app.col,fillOpacity:.55}).bindPopup(popupHTML(d),pop).addTo(fgAPP);
+    L.marker(ll,{icon:L.divIcon({html:app.html,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d),pop).addTo(fgAPP);
+    L.circleMarker(ll,{radius:18,color:"#333",weight:1,fill:true,fillColor:cld.col,fillOpacity:.55}).bindPopup(popupHTML(d),pop).addTo(fgCLD);
+    L.marker(ll,{icon:L.divIcon({html:cld.html,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d),pop).addTo(fgCLD);
+    L.circleMarker(ll,{radius:18,color:"#333",weight:1,fill:true,fillColor:uvb.col,fillOpacity:.55}).bindPopup(popupHTML(d),pop).addTo(fgUV);
+    L.marker(ll,{icon:L.divIcon({html:uvb.html,iconSize:[58,58],iconAnchor:[29,29]})}).bindPopup(popupHTML(d),pop).addTo(fgUV);
+  }
+
+  async function init(){
+    const host=document.getElementById('map-virt');
+    if(!host) return;
+
+    try{
+      await (window.L ? Promise.resolve() : new Promise((ok,err)=>window.addEventListener('load', ()=>window.L?ok():err(new Error('Leaflet não carregou.')))));
+    }catch(e){
+      host.innerHTML='<div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb">Leaflet não carregou. Verifique a rede/CDN.</div>';
+      return;
+    }
+
+    const map=L.map('map-virt',{zoomControl:true,attributionControl:true}).setView([-3.11,-60.02],8);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap &copy; CARTO'}).addTo(map);
+
+    const fgT=L.layerGroup().addTo(map);
+    const fgAPP=L.layerGroup(), fgCLD=L.layerGroup(), fgUV=L.layerGroup();
+
+    try{
+      const data=await getAll();
+      const bounds=[]; let last=null;
+      data.forEach(d=>{
+        if(!d) return;
+        addCityLayers(map,d,{fgT,fgAPP,fgCLD,fgUV});
+        bounds.push([d.lat,d.lon]);
+        const cand=d.updated_any?new Date(d.updated_any):null;
+        if(cand && (!last || cand>last)) last=cand;
+      });
+      if(bounds.length>0) map.fitBounds(bounds,{padding:[10,10]});
+      L.control.layers(null,{
+        "Temperatura do ar (°C)":fgT,
+        "Sensação térmica (°C)":fgAPP,
+        "Nuvens (%)":fgCLD,
+        "UV (índice)":fgUV
+      },{collapsed:false,position:"topleft"}).addTo(map);
+      addLegend(map); addSourceBox(map, last?last.toISOString():null);
+    }catch(err){
+      console.error(err);
+      host.innerHTML='<div style="padding:14px;background:#fff;border-radius:12px;border:1px solid #e5e7eb"><b>Não foi possível carregar dados do Open-Meteo.</b></div>';
+    }
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+{% endblock content %}

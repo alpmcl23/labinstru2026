@@ -1,0 +1,691 @@
+{% extends 'siteapp/base.html' %}
+{% block title %}Projetos – LabInstru{% endblock %}
+{% block content %}
+
+<style>
+  /* ====== Base / util ====== */
+  .labinstru-card + .labinstru-card{ margin-top:.75rem; }
+  .muted{ color:#98a2b3; }
+
+  /* ====== Acento verde (cor da aba) ====== */
+  :root{
+    --accent: var(--bs-success, #198754);
+    --accent-rgb: var(--bs-success-rgb, 25,135,84);
+  }
+
+  /* ====== Switch de seção (topo) ====== */
+  .switch-bar{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .switch-bar .form-select{ min-width:260px; border-color:var(--accent); }
+  .switch-bar .form-select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 .2rem rgba(var(--accent-rgb), .25);
+  }
+
+  /* ====== Controles & layout comuns ====== */
+  .toolbar{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+  .toolbar .form-control, .toolbar .form-select{ min-width:210px; }
+  @media (max-width:768px){
+    .toolbar .form-control, .toolbar .form-select{ min-width:0; flex:1; }
+  }
+
+  /* Placeholder visual para <select> (rótulo some ao abrir/selecionar) */
+  .select-wrap{ position:relative; min-width:210px; }
+  .select-wrap .form-select{ padding-left:12px; }
+  .select-placeholder{
+    position:absolute; left:12px; top:6px; font-size:.875rem;
+    color:#98a2b3; pointer-events:none; transition:opacity .15s ease;
+  }
+  .select-wrap.is-open .select-placeholder,
+  .select-wrap.has-value .select-placeholder{ opacity:0; visibility:hidden; }
+
+  /* ====== Listas ====== */
+  .ic-list,.ext-list,.ev-list,.vinc-list{ padding-left:1.25rem; }
+  .ic-list li,.ext-list li,.ev-list li,.vinc-list li{ margin-bottom:1rem; }
+  .ic-titulo,.ext-titulo,.ev-titulo,.vinc-titulo{ font-size:1rem; font-weight:700; line-height:1.35; margin:0; }
+  .ic-meta,.ext-meta,.ev-meta,.vinc-meta{ display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; margin-top:.35rem; }
+  .ic-meta .badge,.ext-meta .badge,.ev-meta .badge,.vinc-meta .badge{ border-radius:999px; }
+  .ic-desc,.ext-desc,.ev-desc,.vinc-desc{ color:#667085; font-size:.925rem; margin-top:.25rem; }
+
+  /* ====== Destaque da seção ativa (verde) — SEM barra ====== */
+  .proj-section.active-section{
+    border-left:0;                               /* <<< barra verde removida */
+    background:rgba(var(--accent-rgb), .03);
+  }
+  .proj-section.active-section h3{ color:var(--accent); }
+  .proj-section.active-section .form-control:focus,
+  .proj-section.active-section .form-select:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 .2rem rgba(var(--accent-rgb), .2);
+  }
+  .proj-section.active-section .select-wrap.is-open .form-select{ border-color:var(--accent); }
+  .proj-section.active-section .select-wrap.is-open .select-placeholder{ color:var(--accent); }
+  .proj-section.active-section .btn-outline-secondary:hover{
+    color:var(--accent); border-color:var(--accent); background:rgba(var(--accent-rgb), .06);
+  }
+</style>
+
+<!-- ====== Cabeçalho + seleção de seção ====== -->
+<div class="labinstru-card">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h2 class="h4 mb-0">📁 Projetos</h2>
+    <span class="muted small">Iniciação Científica, Extensão, Eventos e Vinculados</span>
+  </div>
+  <div class="switch-bar mt-2">
+    <label for="sec-select" class="form-label mb-0 muted">Selecionar seção:</label>
+    <select id="sec-select" class="form-select form-select-sm" aria-label="Selecionar seção">
+      <option value="sec-ic" selected>Iniciação Científica</option>
+      <option value="sec-ext">Projetos de Extensão</option>
+      <option value="sec-eventos">Projetos para Realização de Evento</option>
+      <option value="sec-vinc">Projetos Vinculados</option>
+    </select>
+  </div>
+</div>
+
+<!-- ====== Seção: Iniciação Científica ====== -->
+<div class="labinstru-card proj-section" id="sec-ic">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h3 class="h5 mb-0">Iniciação Científica</h3>
+    <div class="toolbar">
+      <input id="ic-busca" class="form-control form-control-sm" placeholder="Pesquisar por nome, tema ou orientador…" aria-label="Pesquisar IC">
+      <div class="select-wrap">
+        <select id="ic-ano" class="form-select form-select-sm" aria-label="Filtrar por ano (IC)">
+          <option value="" selected hidden></option>
+          <option>2023</option><option>2019</option><option>2018</option><option>2017</option>
+          <option>2016</option><option>2015</option><option>2014</option><option>2013</option>
+          <option>2012</option><option>2011</option><option>2010</option>
+        </select>
+        <span class="select-placeholder">Ano</span>
+      </div>
+      <div class="select-wrap">
+        <select id="ic-area" class="form-select form-select-sm" aria-label="Filtrar por área (IC)">
+          <option value="" selected hidden></option>
+          <option>Meteorologia</option>
+          <option>Engenharia de Computação</option>
+        </select>
+        <span class="select-placeholder">Área</span>
+      </div>
+      <button id="ic-limpar" class="btn btn-outline-secondary btn-sm">Limpar</button>
+    </div>
+  </div>
+  <div class="small muted mt-2" id="ic-contagem">Mostrando todos os itens</div>
+
+  <ol class="ic-list mt-3" id="ic-list">
+    <!-- 1 -->
+    <li data-ano="2023" data-area="Meteorologia">
+      <article id="ic-1">
+        <h4 class="ic-titulo"><strong>Rafael Rodrigues Batista</strong><span class="mx-1 text-body-secondary">•</span>Eventos extremos de chuva em Manaus: uma caracterização com base em dados observados</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2023</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 2 -->
+    <li data-ano="2023" data-area="Meteorologia">
+      <article id="ic-2">
+        <h4 class="ic-titulo"><strong>Dayanne Cássia Pereira de Oliveira</strong><span class="mx-1 text-body-secondary">•</span>Conforto térmico em Manaus: um estudo observacional</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2023</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 3 -->
+    <li data-ano="2019" data-area="Meteorologia">
+      <article id="ic-3">
+        <h4 class="ic-titulo"><strong>Selton Germano dos Santos Bandeira</strong><span class="mx-1 text-body-secondary">•</span>Variabilidade espaço-temporal do índice de conforto térmico em Manaus e sua relação com o tipo de cobertura do solo</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2019</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica – UEA. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 4 -->
+    <li data-ano="2018" data-area="Meteorologia">
+      <article id="ic-4">
+        <h4 class="ic-titulo"><strong>Marcelo Victor Gonçalves Simas</strong><span class="mx-1 text-body-secondary">•</span>Análise da precipitação diária de Manaus e sua relação com a ocorrência de El Niño, La Niña e anos neutros</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2018</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 5 -->
+    <li data-ano="2018" data-area="Meteorologia">
+      <article id="ic-5">
+        <h4 class="ic-titulo"><strong>Selton Germano dos Santos Bandeira</strong><span class="mx-1 text-body-secondary">•</span>Estudo das características físicas das gotas de chuva em Manaus com dados de disdrômetros</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2018</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 6 -->
+    <li data-ano="2018" data-area="Meteorologia">
+      <article id="ic-6">
+        <h4 class="ic-titulo"><strong>Andre Luiz Leturiondo Segundo</strong><span class="mx-1 text-body-secondary">•</span>Análise da precipitação na bacia do Mindú e sua relação com o nível da água do igarapé na zona Centro-Sul de Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2018</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 7 -->
+    <li data-ano="2017" data-area="Meteorologia">
+      <article id="ic-7">
+        <h4 class="ic-titulo"><strong>Gabriel Faraco de Andrade Rodrigues</strong><span class="mx-1 text-body-secondary">•</span>Métodos computacionais para processamento de dados meteorológicos</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2017</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, CNPq. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 8 -->
+    <li data-ano="2017" data-area="Engenharia de Computação">
+      <article id="ic-8">
+        <h4 class="ic-titulo"><strong>Rafaela dos Santos Sousa</strong><span class="mx-1 text-body-secondary">•</span>Sistema de Informação para Rede de Estações Meteorológicas e análise de precipitação com redes neurais artificiais</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2017</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Engenharia de Computação</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Engenharia de Computação) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 9 -->
+    <li data-ano="2017" data-area="Engenharia de Computação">
+      <article id="ic-9">
+        <h4 class="ic-titulo"><strong>Emanuel Oliveira da Silva</strong><span class="mx-1 text-body-secondary">•</span>Aprendizagem de máquina para classificação de precipitações</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2017</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Engenharia de Computação</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Engenharia de Computação) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 10 -->
+    <li data-ano="2017" data-area="Engenharia de Computação">
+      <article id="ic-10">
+        <h4 class="ic-titulo"><strong>Nicoli Pinheiro de Araújo</strong><span class="mx-1 text-body-secondary">•</span>Redes neurais para previsão de precipitação em Manaus, Amazonas</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2017</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Engenharia de Computação</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Engenharia de Computação) – UEA, CNPq. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 11 -->
+    <li data-ano="2017" data-area="Meteorologia">
+      <article id="ic-11">
+        <h4 class="ic-titulo"><strong>Lemoel Pimentel de Brito</strong><span class="mx-1 text-body-secondary">•</span>Relação entre rajadas de vento e ocorrência de nuvens estratiformes e convectivas em Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2017</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 12 -->
+    <li data-ano="2017" data-area="Meteorologia">
+      <article id="ic-12">
+        <h4 class="ic-titulo"><strong>Ranyelli Cunha de Figueiredo</strong><span class="mx-1 text-body-secondary">•</span>Associação entre variáveis meteorológicas e incidência de doenças relacionadas ao vetor <em>Aedes aegypti</em> em Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2017</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 13 -->
+    <li data-ano="2016" data-area="Meteorologia">
+      <article id="ic-13">
+        <h4 class="ic-titulo"><strong>Lemoel Pimentel de Brito</strong><span class="mx-1 text-body-secondary">•</span>Caracterização do regime de vento à superfície em Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2016</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 14 -->
+    <li data-ano="2016" data-area="Meteorologia">
+      <article id="ic-14">
+        <h4 class="ic-titulo"><strong>Sergio Alexandre da Silva</strong><span class="mx-1 text-body-secondary">•</span>Análise do índice de calor em diferentes bairros de Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2016</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 15 -->
+    <li data-ano="2016" data-area="Meteorologia">
+      <article id="ic-15">
+        <h4 class="ic-titulo"><strong>Andre Luiz Leturiondo Segundo</strong><span class="mx-1 text-body-secondary">•</span>Distribuição espacial da precipitação em Manaus e sua relação com os igarapés do Quarenta e do Mindu – Parte II</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2016</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 16 -->
+    <li data-ano="2016" data-area="Engenharia de Computação">
+      <article id="ic-16">
+        <h4 class="ic-titulo"><strong>Janderson do Nascimento Lira</strong><span class="mx-1 text-body-secondary">•</span>Previsão da cota do rio Negro utilizando redes neurais artificiais</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2016</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Engenharia de Computação</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Engenharia de Computação) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 17 -->
+    <li data-ano="2015" data-area="Meteorologia">
+      <article id="ic-17">
+        <h4 class="ic-titulo"><strong>André Luiz Leturiondo Segundo</strong><span class="mx-1 text-body-secondary">•</span>Distribuição espacial da precipitação em Manaus e sua relação com os igarapés do Quarenta e do Mindu</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2015</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 18 -->
+    <li data-ano="2015" data-area="Meteorologia">
+      <article id="ic-18">
+        <h4 class="ic-titulo"><strong>Igor Bruno Carramanho de Azevedo</strong><span class="mx-1 text-body-secondary">•</span>Condições meteorológicas nas capitais do Brasil para estudo do Índice de Calor em Manaus – Parte II</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2015</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 19 -->
+    <li data-ano="2014" data-area="Meteorologia">
+      <article id="ic-19">
+        <h4 class="ic-titulo"><strong>Igor Bruno Carramanho de Azevedo</strong><span class="mx-1 text-body-secondary">•</span>Condições meteorológicas nas capitais do Brasil para estudo do Índice de Calor em Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2014</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 20 -->
+    <li data-ano="2014" data-area="Meteorologia">
+      <article id="ic-20">
+        <h4 class="ic-titulo"><strong>Priscila Pereira de Miranda</strong><span class="mx-1 text-body-secondary">•</span>Relação entre eventos de precipitação, nível de igarapé e danos à população de Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2014</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 21 -->
+    <li data-ano="2013" data-area="Meteorologia">
+      <article id="ic-21">
+        <h4 class="ic-titulo"><strong>Rafael Gomes Barbosa</strong><span class="mx-1 text-body-secondary">•</span>Gotas de chuva – Parte II</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2013</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 22 -->
+    <li data-ano="2013" data-area="Meteorologia">
+      <article id="ic-22">
+        <h4 class="ic-titulo"><strong>Priscila Pereira de Miranda</strong><span class="mx-1 text-body-secondary">•</span>Análise da distribuição da precipitação na Bacia Amazônica – Parte II</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2013</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 23 -->
+    <li data-ano="2013" data-area="Meteorologia">
+      <article id="ic-23">
+        <h4 class="ic-titulo"><strong>Nikolai da Silva Espinoza</strong><span class="mx-1 text-body-secondary">•</span>Análise das observações na estação meteorológica da Escola Superior de Tecnologia – Parte II</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2013</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 24 -->
+    <li data-ano="2012" data-area="Meteorologia">
+      <article id="ic-24">
+        <h4 class="ic-titulo"><strong>Lady Layana Martins Custódio</strong><span class="mx-1 text-body-secondary">•</span>Ilhas de calor urbano e campos meteorológicos em Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2012</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 25 -->
+    <li data-ano="2012" data-area="Meteorologia">
+      <article id="ic-25">
+        <h4 class="ic-titulo"><strong>Rafael Gomes Barbosa</strong><span class="mx-1 text-body-secondary">•</span>Gotas de chuva</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2012</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 26 -->
+    <li data-ano="2012" data-area="Meteorologia">
+      <article id="ic-26">
+        <h4 class="ic-titulo"><strong>Nikolai da Silva Espinoza</strong><span class="mx-1 text-body-secondary">•</span>Análise das observações em estação meteorológica na Escola Superior de Tecnologia</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2012</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 27 -->
+    <li data-ano="2012" data-area="Meteorologia">
+      <article id="ic-27">
+        <h4 class="ic-titulo"><strong>Priscila Pereira de Miranda</strong><span class="mx-1 text-body-secondary">•</span>Análise da distribuição da precipitação na Bacia Amazônica</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2012</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 28 -->
+    <li data-ano="2011" data-area="Meteorologia">
+      <article id="ic-28">
+        <h4 class="ic-titulo"><strong>Lady Layana Martins Custódio</strong><span class="mx-1 text-body-secondary">•</span>Variabilidade espacial e temporal das variáveis meteorológicas em Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2011</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 29 -->
+    <li data-ano="2011" data-area="Meteorologia">
+      <article id="ic-29">
+        <h4 class="ic-titulo"><strong>Nikolai da Silva Espinoza</strong><span class="mx-1 text-body-secondary">•</span>Monitoramento do tempo e do clima por observações na Escola Superior de Tecnologia</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2011</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, CNPq. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 30 -->
+    <li data-ano="2011" data-area="Meteorologia">
+      <article id="ic-30">
+        <h4 class="ic-titulo"><strong>Rafael Gomes Barbosa</strong><span class="mx-1 text-body-secondary">•</span>Pingos de chuva</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2011</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 31 -->
+    <li data-ano="2010" data-area="Meteorologia">
+      <article id="ic-31">
+        <h4 class="ic-titulo"><strong>Yara Fernanda Silva do Vale</strong><span class="mx-1 text-body-secondary">•</span>Acompanhamento de variáveis meteorológicas a partir de rede de estações em Manaus</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2010</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+    <!-- 32 -->
+    <li data-ano="2010" data-area="Meteorologia">
+      <article id="ic-32">
+        <h4 class="ic-titulo"><strong>Ane Ferreira Siquara</strong><span class="mx-1 text-body-secondary">•</span>Monitoramento de dados em estação meteorológica automática no campus da EST</h4>
+        <div class="ic-meta"><span class="badge text-bg-light">2010</span><span class="badge text-bg-success">IC</span><span class="badge text-bg-secondary">Meteorologia</span></div>
+        <div class="ic-desc">Iniciação Científica. (Graduando em Meteorologia) – UEA, FAPEAM. Orientadora: Maria Betânia Leal de Oliveira.</div>
+      </article>
+    </li>
+  </ol>
+</div>
+
+<!-- ====== Seção: Extensão ====== -->
+<div class="labinstru-card proj-section d-none" id="sec-ext">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h3 class="h5 mb-0">Projetos de Extensão</h3>
+    <div class="toolbar">
+      <input id="ext-busca" class="form-control form-control-sm" placeholder="Pesquisar por título, edital, programa…" aria-label="Pesquisar Extensão">
+      <div class="select-wrap">
+        <select id="ext-periodo" class="form-select form-select-sm" aria-label="Filtrar por início (Ext)">
+          <option value="" selected hidden></option>
+          <option>2024</option><option>2023</option><option>2022</option>
+          <option>2018</option><option>2017</option><option>2014</option>
+        </select>
+        <span class="select-placeholder">Período (início)</span>
+      </div>
+      <div class="select-wrap">
+        <select id="ext-programa" class="form-select form-select-sm" aria-label="Filtrar por programa (Ext)">
+          <option value="" selected hidden></option>
+          <option>PROGEX/UEA</option><option>PADEX/UEA</option><option>CNPq</option>
+        </select>
+        <span class="select-placeholder">Programa</span>
+      </div>
+      <button id="ext-limpar" class="btn btn-outline-secondary btn-sm">Limpar</button>
+    </div>
+  </div>
+  <div class="small muted mt-2" id="ext-contagem">Mostrando todos os itens</div>
+
+  <ol class="ext-list mt-3" id="ext-list">
+    <li data-inicio="2024" data-fim="2025" data-programa="PROGEX/UEA">
+      <article>
+        <h4 class="ext-titulo"><strong>Em dia com a meteorologia – Fase 3</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2024–2025</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">PROGEX/UEA</span></div>
+        <div class="ext-desc">EDITAL Nº 50/2024-GR/UEA. Website: <a href="https://emdiacomameteorologia.my.canva.site/" target="_blank" rel="noopener">emdiacomameteorologia.my.canva.site</a>.</div>
+      </article>
+    </li>
+    <li data-inicio="2023" data-fim="2024" data-programa="PADEX/UEA">
+      <article>
+        <h4 class="ext-titulo"><strong>Em dia com a meteorologia – Fase 2</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2023–2024</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">PADEX/UEA</span></div>
+        <div class="ext-desc">EDITAL Nº 73/2023-GR/UEA. Website: <a href="https://emdiacomameteorologia.my.canva.site/" target="_blank" rel="noopener">emdiacomameteorologia.my.canva.site</a>.</div>
+      </article>
+    </li>
+    <li data-inicio="2022" data-fim="2023" data-programa="PADEX/UEA">
+      <article>
+        <h4 class="ext-titulo"><strong>Em dia com a meteorologia</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2022–2023</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">PADEX/UEA</span></div>
+        <div class="ext-desc">EDITAL Nº 57/2022-GR/UEA.</div>
+      </article>
+    </li>
+    <li data-inicio="2018" data-fim="2021" data-programa="CNPq">
+      <article>
+        <h4 class="ext-titulo"><strong>Meninas e a Ciência Atmosférica</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2018–2021</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">CNPq</span></div>
+        <div class="ext-desc">Chamada CNPq/MCTIC Nº 31/2018 – Meninas nas Ciências Exatas, Engenharias e Computação.</div>
+      </article>
+    </li>
+    <li data-inicio="2018" data-fim="2019" data-programa="PROGEX/UEA">
+      <article>
+        <h4 class="ext-titulo"><strong>Curumins do Tempo – Fase II</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2018–2019</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">PROGEX/UEA</span></div>
+        <div class="ext-desc">EDITAL Nº 40/2018-GR/UEA.</div>
+      </article>
+    </li>
+    <li data-inicio="2018" data-fim="2019" data-programa="PROGEX/UEA">
+      <article>
+        <h4 class="ext-titulo"><strong>De olho na chuva</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2018–2019</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">PROGEX/UEA</span></div>
+        <div class="ext-desc">EDITAL Nº 40/2018-GR/UEA.</div>
+      </article>
+    </li>
+    <li data-inicio="2017" data-fim="2018" data-programa="PROGEX/UEA">
+      <article>
+        <h4 class="ext-titulo"><strong>Curumins do Tempo</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2017–2018</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">PROGEX/UEA</span></div>
+        <div class="ext-desc">EDITAL Nº 38/2017-GR/UEA.</div>
+      </article>
+    </li>
+    <li data-inicio="2014" data-fim="2015" data-programa="CNPq">
+      <article>
+        <h4 class="ext-titulo"><strong>Meninas do Tempo</strong></h4>
+        <div class="ext-meta"><span class="badge text-bg-light">2014–2015</span><span class="badge text-bg-primary">Extensão</span><span class="badge text-bg-secondary">CNPq</span></div>
+        <div class="ext-desc">Chamada Pública Nº 18/2013 MCTI/CNPq/SPM-PR/Petrobras – Meninas e Jovens Fazendo Ciências Exatas, Engenharias e Computação.</div>
+      </article>
+    </li>
+  </ol>
+</div>
+
+<!-- ====== Seção: Eventos ====== -->
+<div class="labinstru-card proj-section d-none" id="sec-eventos">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h3 class="h5 mb-0">Projetos para Realização de Evento</h3>
+    <div class="toolbar">
+      <input id="ev-busca" class="form-control form-control-sm" placeholder="Pesquisar por título, edital, programa…" aria-label="Pesquisar Eventos">
+      <div class="select-wrap">
+        <select id="ev-ano" class="form-select form-select-sm" aria-label="Filtrar por ano (Eventos)">
+          <option value="" selected hidden></option>
+          <option>2025</option><option>2024</option>
+        </select>
+        <span class="select-placeholder">Ano</span>
+      </div>
+      <div class="select-wrap">
+        <select id="ev-programa" class="form-select form-select-sm" aria-label="Filtrar por programa (Eventos)">
+          <option value="" selected hidden></option>
+          <option>PADEV/UEA</option>
+        </select>
+        <span class="select-placeholder">Programa</span>
+      </div>
+      <button id="ev-limpar" class="btn btn-outline-secondary btn-sm">Limpar</button>
+    </div>
+  </div>
+  <div class="small muted mt-2" id="ev-contagem">Mostrando todos os itens</div>
+
+  <ol class="ev-list mt-3" id="ev-list">
+    <li data-ano="2025" data-programa="PADEV/UEA">
+      <article>
+        <h4 class="ev-titulo"><strong>Popularizando a Meteorologia para todos</strong></h4>
+        <div class="ev-meta"><span class="badge text-bg-light">2025</span><span class="badge text-bg-info">Evento</span><span class="badge text-bg-secondary">PADEV/UEA</span></div>
+        <div class="ev-desc">Edital Nº 66/2024 do Programa de Apoio ao Desenvolvimento de Eventos (PADEV/UEA).</div>
+      </article>
+    </li>
+
+    <li data-ano="2024" data-programa="PADEV/UEA">
+      <article>
+        <h4 class="ev-titulo"><strong>IV Semana Acadêmica de Meteorologia da UEA</strong></h4>
+        <div class="ev-meta"><span class="badge text-bg-light">2024</span><span class="badge text-bg-info">Evento</span><span class="badge text-bg-secondary">PADEV/UEA</span></div>
+        <div class="ev-desc">Edital Nº 56/2023 do Programa de Apoio ao Desenvolvimento de Eventos (PADEV/UEA).</div>
+      </article>
+    </li>
+  </ol>
+</div>
+
+<!-- ====== Seção: Vinculados ====== -->
+<div class="labinstru-card proj-section d-none" id="sec-vinc">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h3 class="h5 mb-0">Projetos Vinculados</h3>
+    <div class="toolbar">
+      <input id="v-busca" class="form-control form-control-sm" placeholder="Pesquisar por título, agência, coordenador…" aria-label="Pesquisar Vinculados">
+      <div class="select-wrap">
+        <select id="v-inicio" class="form-select form-select-sm" aria-label="Filtrar por início (Vinculados)">
+          <option value="" selected hidden></option>
+          <option>2023</option><option>2021</option><option>2020</option>
+          <option>2014</option><option>2013</option><option>2010</option><option>2007</option>
+        </select>
+        <span class="select-placeholder">Início</span>
+      </div>
+      <div class="select-wrap">
+        <select id="v-financiador" class="form-select form-select-sm" aria-label="Filtrar por financiador (Vinculados)">
+          <option value="" selected hidden></option>
+          <option>FAPEAM</option><option>CUOMO FOUNDATION</option><option>FAPESP/FAPEAM</option><option>CNPq</option><option>FINEP</option>
+        </select>
+        <span class="select-placeholder">Financiador</span>
+      </div>
+      <div class="select-wrap">
+        <select id="v-situacao" class="form-select form-select-sm" aria-label="Filtrar por situação (Vinculados)">
+          <option value="" selected hidden></option>
+          <option>Atual</option><option>Concluído</option>
+        </select>
+        <span class="select-placeholder">Situação</span>
+      </div>
+      <button id="v-limpar" class="btn btn-outline-secondary btn-sm">Limpar</button>
+    </div>
+  </div>
+  <div class="small muted mt-2" id="v-contagem">Mostrando todos os itens</div>
+
+  <ol class="vinc-list mt-3" id="v-list">
+    <li data-inicio="2023" data-fim="atual" data-financiador="FAPEAM" data-situacao="Atual">
+      <article>
+        <h4 class="vinc-titulo"><strong>O efeito da variabilidade climática multiescalar na precipitação sobre a América do Sul…</strong></h4>
+        <div class="vinc-meta"><span class="badge text-bg-light">2023–atual</span><span class="badge text-bg-primary">Vinculado</span><span class="badge text-bg-secondary">FAPEAM</span></div>
+        <div class="vinc-desc">EDITAL Nº 001/2023 – UNIVERSAL – FAPEAM 20 ANOS. Coordenação: Rita Valéria Andreoli de Souza; Rodrigo Augusto Ferreira de Souza.</div>
+      </article>
+    </li>
+    <li data-inicio="2021" data-fim="atual" data-financiador="CUOMO FOUNDATION" data-situacao="Atual">
+      <article>
+        <h4 class="vinc-titulo"><strong>Qualidade do Ar da Amazônia: um Programa Educacional sobre a Poluição do Ar</strong></h4>
+        <div class="vinc-meta"><span class="badge text-bg-light">2021–atual</span><span class="badge text-bg-primary">Vinculado</span><span class="badge text-bg-secondary">CUOMO FOUNDATION</span></div>
+      </article>
+    </li>
+    <li data-inicio="2020" data-fim="2024" data-financiador="FAPESP/FAPEAM" data-situacao="Concluído">
+      <article>
+        <h4 class="vinc-titulo"><strong>Sistema de previsão de secas e enchentes em apoio à gestão da RDS do Rio Madeira</strong></h4>
+        <div class="vinc-meta"><span class="badge text-bg-light">2020–2024</span><span class="badge text-bg-primary">Vinculado</span><span class="badge text-bg-secondary">FAPESP/FAPEAM</span></div>
+        <div class="vinc-desc">Chamada Pública Nº 001/2020 – FAPESP/FAPEAM. Coord.: Francis Wagner da Silva Correa.</div>
+      </article>
+    </li>
+    <li data-inicio="2014" data-fim="2019" data-financiador="CNPq" data-situacao="Concluído">
+      <article>
+        <h4 class="vinc-titulo"><strong>Previsão de tempo de curto prazo em ultra-alta resolução para a RM Manaus…</strong></h4>
+        <div class="vinc-meta"><span class="badge text-bg-light">2014–2019</span><span class="badge text-bg-primary">Vinculado</span><span class="badge text-bg-secondary">CNPq</span></div>
+        <div class="vinc-desc">Conselho Nacional de Desenvolvimento Científico e Tecnológico (CNPq). Coord.: Rita Valéria Andreoli de Souza.</div>
+      </article>
+    </li>
+    <li data-inicio="2013" data-fim="2017" data-financiador="FINEP" data-situacao="Concluído">
+      <article>
+        <h4 class="vinc-titulo"><strong>PROINFRA/FINEP: Montagem de Sítio Experimental para Pesquisa em Áreas Multidisciplinares…</strong></h4>
+        <div class="vinc-meta"><span class="badge text-bg-light">2013–2017</span><span class="badge text-bg-primary">Vinculado</span><span class="badge text-bg-secondary">FINEP</span></div>
+        <div class="vinc-desc">Financiadora de Estudos e Projetos (FINEP). Coord.: Rita Valéria Andreoli de Souza.</div>
+      </article>
+    </li>
+    <li data-inicio="2010" data-fim="2019" data-financiador="FINEP" data-situacao="Concluído">
+      <article>
+        <h4 class="vinc-titulo"><strong>Rede de Mudanças Climáticas da Amazônia – REMCLAM</strong></h4>
+        <div class="vinc-meta"><span class="badge text-bg-light">2010–2019</span><span class="badge text-bg-primary">Vinculado</span><span class="badge text-bg-secondary">FINEP</span></div>
+        <div class="vinc-desc">Financiadora de Estudos e Projetos (FINEP). Coord.: Rita Valéria Andreoli de Souza.</div>
+      </article>
+    </li>
+    <li data-inicio="2007" data-fim="2011" data-financiador="FINEP" data-situacao="Concluído">
+      <article>
+        <h4 class="vinc-titulo"><strong>Rede de Meteorologia e Hidrologia do Estado do Amazonas – REMETHI</strong></h4>
+        <div class="vinc-meta"><span class="badge text-bg-light">2007–2011</span><span class="badge text-bg-primary">Vinculado</span><span class="badge text-bg-secondary">FINEP</span></div>
+        <div class="vinc-desc">MCT/FINEP/CT-INFRA PROINFRA 01/2006. Coord.: Jorg Johannes Ohly.</div>
+      </article>
+    </li>
+  </ol>
+</div>
+
+<script>
+(function(){
+  /* ========= Troca de seção com destaque (sem barra) ========= */
+  const sectionSelect = document.getElementById('sec-select');
+  const sections = Array.from(document.querySelectorAll('.proj-section'));
+
+  function showSection(id){
+    sections.forEach(s => {
+      const active = (s.id === id);
+      s.classList.toggle('d-none', !active);
+      s.classList.toggle('active-section', active);
+    });
+    try{ history.replaceState(null, '', '#'+id); }catch(e){}
+    const firstInput = document.querySelector('#'+id+' .form-control');
+    if(firstInput) firstInput.focus({preventScroll:true});
+  }
+
+  const initial = (location.hash||'').slice(1);
+  if(initial && document.getElementById(initial)){ sectionSelect.value = initial; }
+  showSection(sectionSelect.value);
+  sectionSelect.addEventListener('change', e => showSection(e.target.value));
+
+  /* ========= Placeholder visual nos <select> ========= */
+  function bindSelectWrap(sel){
+    const wrap = sel.closest('.select-wrap'); if(!wrap) return;
+    const refresh = () => wrap.classList.toggle('has-value', sel.value !== '');
+    sel.addEventListener('focus', ()=> wrap.classList.add('is-open'));
+    sel.addEventListener('blur',  ()=> wrap.classList.remove('is-open'));
+    sel.addEventListener('change', refresh);
+    refresh();
+  }
+  document.querySelectorAll('.select-wrap select').forEach(bindSelectWrap);
+
+  /* ========= Util: normalização (sem acentos) ========= */
+  const norm = t => (t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+  /* ========= Fábrica de filtros ========= */
+  function makeFilter({searchId, listId, countId, clearId, selects}){
+    const $search = document.getElementById(searchId);
+    const $list   = document.getElementById(listId);
+    const $count  = document.getElementById(countId);
+    const $clear  = document.getElementById(clearId);
+    const $selects= (selects||[]).map(s => ({ el: document.getElementById(s.id), key: s.dataKey }));
+    if(!$list) return;
+
+    function apply(){
+      const q = norm($search ? $search.value : '');
+      let vis = 0;
+      $list.querySelectorAll('li').forEach(li=>{
+        const txt = norm(li.innerText);
+        let ok = !q || txt.includes(q);
+        for(const s of $selects){
+          if(!ok) break;
+          if(s.el){
+            const v = (s.el.value||'').trim();
+            if(v && li.dataset[s.key] !== v){ ok = false; }
+          }
+        }
+        li.style.display = ok ? '' : 'none';
+        if(ok) vis++;
+      });
+      if($count){
+        const any = (q || $selects.some(s => s.el && s.el.value));
+        $count.textContent = any ? `Mostrando ${vis} item(ns)` : 'Mostrando todos os itens';
+      }
+    }
+
+    if($search) $search.addEventListener('input', apply);
+    $selects.forEach(s => s.el && s.el.addEventListener('change', apply));
+    if($clear){
+      $clear.addEventListener('click', ()=>{
+        if($search) $search.value = '';
+        $selects.forEach(s => { if(s.el){ s.el.value=''; s.el.dispatchEvent(new Event('change')); } });
+        apply();
+        if($search) $search.focus();
+      });
+    }
+    apply();
+  }
+
+  /* ========= Instanciar filtros ========= */
+  makeFilter({
+    searchId:'ic-busca', listId:'ic-list', countId:'ic-contagem', clearId:'ic-limpar',
+    selects:[ {id:'ic-ano', dataKey:'ano'}, {id:'ic-area', dataKey:'area'} ]
+  });
+  makeFilter({
+    searchId:'ext-busca', listId:'ext-list', countId:'ext-contagem', clearId:'ext-limpar',
+    selects:[ {id:'ext-periodo', dataKey:'inicio'}, {id:'ext-programa', dataKey:'programa'} ]
+  });
+  makeFilter({
+    searchId:'ev-busca', listId:'ev-list', countId:'ev-contagem', clearId:'ev-limpar',
+    selects:[ {id:'ev-ano', dataKey:'ano'}, {id:'ev-programa', dataKey:'programa'} ]
+  });
+  makeFilter({
+    searchId:'v-busca', listId:'v-list', countId:'v-contagem', clearId:'v-limpar',
+    selects:[
+      {id:'v-inicio', dataKey:'inicio'},
+      {id:'v-financiador', dataKey:'financiador'},
+      {id:'v-situacao', dataKey:'situacao'}
+    ]
+  });
+})();
+</script>
+
+{% endblock %}
