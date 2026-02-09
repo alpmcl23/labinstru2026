@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- fundo verde -->
+  <rect width="512" height="512" fill="#009b3a"></rect>
+  <!-- losango amarelo -->
+  <polygon points="256,86 446,256 256,426 66,256" fill="#ffdf00"></polygon>
+  <!-- círculo azul -->
+  <circle cx="256" cy="256" r="96" fill="#002776"></circle>
+  <!-- faixa branca (simplificada) -->
+  <path d="M164 254c26-38 82-64 140-56 34 4 63 18 84 39" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" transform="rotate(-14 256 256)"></path>
+</svg>

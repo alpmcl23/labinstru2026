@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- fundo vermelho -->
+  <rect width="512" height="512" fill="#b22234"></rect>
+  <!-- 6 listras brancas (de 13) -->
+  <g fill="#fff">
+    <rect y="39.385" width="512" height="39.385"></rect>
+    <rect y="118.155" width="512" height="39.385"></rect>
+    <rect y="196.925" width="512" height="39.385"></rect>
+    <rect y="275.695" width="512" height="39.385"></rect>
+    <rect y="354.465" width="512" height="39.385"></rect>
+    <rect y="433.235" width="512" height="39.385"></rect>
+  </g>
+  <!-- canton azul (simplificado) -->
+  <rect width="205" height="276" fill="#3c3b6e"></rect>
+</svg>
