@@ -1,13 +1,6 @@
-django
-gunicorn
-whitenoise
-pandas
-plotly
-folium
-supabase
-pytz
-python-dotenv
+rank-bm25
+scikit-learn
+PyPDF2
+python-docx
+beautifulsoup4
 requests
-
-
-pip install rank_bm25 scikit-learn PyPDF2 python-docx beautifulsoup4 requests
