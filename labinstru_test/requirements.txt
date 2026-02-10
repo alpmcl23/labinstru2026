@@ -1,16 +1,40 @@
+# =========================
+# Core Django / Produção
+# =========================
 Django>=4.2,<5.0
 gunicorn>=21.2
 whitenoise>=6.6
-rank-bm25
-scikit-learn
-PyPDF2
-python-docx
-beautifulsoup4
-requests
 python-dotenv>=1.0.0
 
+# =========================
+# Banco de dados / Supabase
+# =========================
+supabase>=2.4.0
+postgrest>=0.16.0
+
+# =========================
+# Ciência de dados / ML
+# =========================
 pandas>=2.2
+numpy
+scipy
+scikit-learn
+rank-bm25
 
+# =========================
+# Visualização
+# =========================
+plotly>=5.19
 
+# =========================
 # Mapas
+# =========================
 folium>=0.15
+
+# =========================
+# Utilidades
+# =========================
+requests
+beautifulsoup4
+PyPDF2
+python-docx
